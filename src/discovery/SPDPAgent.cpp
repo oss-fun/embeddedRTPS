@@ -36,14 +36,18 @@ using rtps::SPDPAgent;
 using rtps::SMElement::BuildInEndpointSet;
 using rtps::SMElement::ParameterId;
 
-SPDPAgent::~SPDPAgent() {
-  if (initialized) {
+SPDPAgent::~SPDPAgent()
+{
+  if (initialized)
+  {
     sys_mutex_free(&m_mutex);
   }
 }
 
-void SPDPAgent::init(Participant &participant, BuiltInEndpoints &endpoints) {
-  if (sys_mutex_new(&m_mutex) != ERR_OK) {
+void SPDPAgent::init(Participant &participant, BuiltInEndpoints &endpoints)
+{
+  if (sys_mutex_new(&m_mutex) != ERR_OK)
+  {
     SPDP_LOG("Could not alloc mutex");
     return;
   }
@@ -58,8 +62,10 @@ void SPDPAgent::init(Participant &participant, BuiltInEndpoints &endpoints) {
   initialized = true;
 }
 
-void SPDPAgent::start() {
-  if (m_running) {
+void SPDPAgent::start()
+{
+  if (m_running)
+  {
     return;
   }
   m_running = true;
@@ -69,76 +75,97 @@ void SPDPAgent::start() {
 
 void SPDPAgent::stop() { m_running = false; }
 
-void SPDPAgent::runBroadcast(void *args) {
+// mros::initから呼び出し　PDPパケットを送信？
+void SPDPAgent::runBroadcast(void *args)
+{
   SPDPAgent &agent = *static_cast<SPDPAgent *>(args);
   const DataSize_t size = ucdr_buffer_length(&agent.m_microbuffer);
   agent.m_buildInEndpoints.spdpWriter->newChange(
       ChangeKind_t::ALIVE, agent.m_microbuffer.init, size);
-  while (agent.m_running) {
+  while (agent.m_running)
+  {
 #ifdef OS_IS_FREERTOS
     vTaskDelay(pdMS_TO_TICKS(Config::SPDP_RESEND_PERIOD_MS));
 #else
     sys_msleep(Config::SPDP_RESEND_PERIOD_MS);
 #endif
     agent.m_buildInEndpoints.spdpWriter->setAllChangesToUnsent();
-    if (agent.m_cycleHB == Config::SPDP_CYCLECOUNT_HEARTBEAT) {
+    if (agent.m_cycleHB == Config::SPDP_CYCLECOUNT_HEARTBEAT)
+    {
       agent.m_cycleHB = 0;
       agent.mp_participant->checkAndResetHeartbeats();
-    } else {
+    }
+    else
+    {
       agent.m_cycleHB++;
     }
   }
 }
 
 void SPDPAgent::receiveCallback(void *callee,
-                                const ReaderCacheChange &cacheChange) {
+                                const ReaderCacheChange &cacheChange)
+{
   auto agent = static_cast<SPDPAgent *>(callee);
   agent->handleSPDPPackage(cacheChange);
 }
 
-void SPDPAgent::handleSPDPPackage(const ReaderCacheChange &cacheChange) {
-  if (!initialized) {
+void SPDPAgent::handleSPDPPackage(const ReaderCacheChange &cacheChange)
+{
+  if (!initialized)
+  {
     SPDP_LOG("Callback called without initialization\n");
     return;
   }
 
   Lock lock{m_mutex};
-  if (cacheChange.size > m_inputBuffer.size()) {
+  if (cacheChange.size > m_inputBuffer.size())
+  {
     SPDP_LOG("Input buffer to small\n");
     return;
   }
 
   // Something went wrong deserializing remote participant
-  if (!cacheChange.copyInto(m_inputBuffer.data(), m_inputBuffer.size())) {
+  if (!cacheChange.copyInto(m_inputBuffer.data(), m_inputBuffer.size()))
+  {
     return;
   }
 
   ucdrBuffer buffer;
   ucdr_init_buffer(&buffer, m_inputBuffer.data(), m_inputBuffer.size());
 
-  if (cacheChange.kind == ChangeKind_t::ALIVE) {
+  if (cacheChange.kind == ChangeKind_t::ALIVE)
+  {
     configureEndianessAndOptions(buffer);
     volatile bool success =
         m_proxyDataBuffer.readFromUcdrBuffer(buffer, mp_participant);
-    if (success) {
+    if (success)
+    {
       // TODO In case we store the history we can free the history mutex here
       processProxyData();
-    } else {
+    }
+    else
+    {
       SPDP_LOG("ParticipantProxyData deserializtaion failed\n");
     }
-  } else {
+  }
+  else
+  {
     // TODO RemoveParticipant
   }
 }
 
-void SPDPAgent::configureEndianessAndOptions(ucdrBuffer &buffer) {
+void SPDPAgent::configureEndianessAndOptions(ucdrBuffer &buffer)
+{
   std::array<uint8_t, 2> encapsulation{};
   // Endianess doesn't matter for this since those are single bytes
   ucdr_deserialize_array_uint8_t(&buffer, encapsulation.data(),
                                  encapsulation.size());
-  if (encapsulation == SMElement::SCHEME_PL_CDR_LE) {
+  if (encapsulation == SMElement::SCHEME_PL_CDR_LE)
+  {
     buffer.endianness = UCDR_LITTLE_ENDIANNESS;
-  } else {
+  }
+  else
+  {
     buffer.endianness = UCDR_BIG_ENDIANNESS;
   }
   // Reuse encapsulation buffer to skip options
@@ -146,15 +173,18 @@ void SPDPAgent::configureEndianessAndOptions(ucdrBuffer &buffer) {
                                  encapsulation.size());
 }
 
-void SPDPAgent::processProxyData() {
-  if (m_proxyDataBuffer.m_guid.prefix.id == mp_participant->m_guidPrefix.id) {
+void SPDPAgent::processProxyData()
+{
+  if (m_proxyDataBuffer.m_guid.prefix.id == mp_participant->m_guidPrefix.id)
+  {
     return; // Our own packet
   }
 
   const rtps::ParticipantProxyData *remote_part;
   remote_part =
       mp_participant->findRemoteParticipant(m_proxyDataBuffer.m_guid.prefix);
-  if (remote_part != nullptr) {
+  if (remote_part != nullptr)
+  {
     SPDP_LOG("Not adding remote participant guid.prefix = %u \n",
              (unsigned int)Guid_t::sum(remote_part->m_guid));
     mp_participant->refreshRemoteParticipantLiveliness(
@@ -162,39 +192,49 @@ void SPDPAgent::processProxyData() {
     return; // Already in our list
   }
 
-  if (mp_participant->addNewRemoteParticipant(m_proxyDataBuffer)) {
+  if (mp_participant->addNewRemoteParticipant(m_proxyDataBuffer))
+  {
     addProxiesForBuiltInEndpoints();
     m_buildInEndpoints.spdpWriter->setAllChangesToUnsent();
 #if SPDP_VERBOSE && RTPS_GLOBAL_VERBOSE
     SPDP_LOG("Added new participant with guid: ");
     printGuidPrefix(m_proxyDataBuffer.m_guid.prefix);
-  } else {
+  }
+  else
+  {
     SPDP_LOG("Failed to add new participant");
   }
 #else
-  } else {
-    while (1) {
+  }
+  else
+  {
+    while (1)
+    {
       SPDP_LOG("failed to add remote participant");
     }
   }
 #endif
 }
 
-bool SPDPAgent::addProxiesForBuiltInEndpoints() {
+bool SPDPAgent::addProxiesForBuiltInEndpoints()
+{
 
   LocatorIPv4 *locator = nullptr;
 
   // Check if the remote participants has a locator in our subnet
   for (unsigned int i = 0;
-       i < m_proxyDataBuffer.m_metatrafficUnicastLocatorList.size(); i++) {
+       i < m_proxyDataBuffer.m_metatrafficUnicastLocatorList.size(); i++)
+  {
     LocatorIPv4 *l = &(m_proxyDataBuffer.m_metatrafficUnicastLocatorList[i]);
-    if (l->isValid() && l->isSameSubnet()) {
+    if (l->isValid() && l->isSameSubnet())
+    {
       locator = l;
       break;
     }
   }
 
-  if (!locator) {
+  if (!locator)
+  {
     return false;
   }
 
@@ -202,28 +242,32 @@ bool SPDPAgent::addProxiesForBuiltInEndpoints() {
   const char *addr = ip4addr_ntoa(&ip4addr);
   SPDP_LOG("Adding IPv4 Locator %s\n", addr);
 
-  if (m_proxyDataBuffer.hasPublicationWriter()) {
+  if (m_proxyDataBuffer.hasPublicationWriter())
+  {
     const WriterProxy proxy{{m_proxyDataBuffer.m_guid.prefix,
                              ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER},
                             *locator};
     m_buildInEndpoints.sedpPubReader->addNewMatchedWriter(proxy);
   }
 
-  if (m_proxyDataBuffer.hasSubscriptionWriter()) {
+  if (m_proxyDataBuffer.hasSubscriptionWriter())
+  {
     const WriterProxy proxy{{m_proxyDataBuffer.m_guid.prefix,
                              ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER},
                             *locator};
     m_buildInEndpoints.sedpSubReader->addNewMatchedWriter(proxy);
   }
 
-  if (m_proxyDataBuffer.hasPublicationReader()) {
+  if (m_proxyDataBuffer.hasPublicationReader())
+  {
     const ReaderProxy proxy{{m_proxyDataBuffer.m_guid.prefix,
                              ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER},
                             *locator};
     m_buildInEndpoints.sedpPubWriter->addNewMatchedReader(proxy);
   }
 
-  if (m_proxyDataBuffer.hasSubscriptionReader()) {
+  if (m_proxyDataBuffer.hasSubscriptionReader())
+  {
     const ReaderProxy proxy{{m_proxyDataBuffer.m_guid.prefix,
                              ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER},
                             *locator};
@@ -233,7 +277,8 @@ bool SPDPAgent::addProxiesForBuiltInEndpoints() {
   return true;
 }
 
-void SPDPAgent::addInlineQos() {
+void SPDPAgent::addInlineQos()
+{
   ucdr_serialize_uint16_t(&m_microbuffer, ParameterId::PID_KEY_HASH);
   ucdr_serialize_uint16_t(&m_microbuffer, 16);
   ucdr_serialize_array_uint8_t(&m_microbuffer,
@@ -249,12 +294,14 @@ void SPDPAgent::addInlineQos() {
   endCurrentList();
 }
 
-void SPDPAgent::endCurrentList() {
+void SPDPAgent::endCurrentList()
+{
   ucdr_serialize_uint16_t(&m_microbuffer, ParameterId::PID_SENTINEL);
   ucdr_serialize_uint16_t(&m_microbuffer, 0);
 }
 
-void SPDPAgent::addParticipantParameters() {
+void SPDPAgent::addParticipantParameters()
+{
   const uint16_t zero_options = 0;
   const uint16_t protocolVersionSize =
       sizeof(PROTOCOLVERSION.major) + sizeof(PROTOCOLVERSION.minor);

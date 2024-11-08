@@ -34,54 +34,59 @@ Author: i11 - Embedded Software, RWTH Aachen University
 
 #if SPDP_VERBOSE && RTPS_GLOBAL_VERBOSE
 #include "rtps/utils/printutils.h"
-#define SPDP_LOG(...)                                                          \
-  if (true) {                                                                  \
-    printf("[SPDP] ");                                                         \
-    printf(__VA_ARGS__);                                                       \
-    printf("\n");                                                              \
+#define SPDP_LOG(...)    \
+  if (true)              \
+  {                      \
+    printf("[SPDP] ");   \
+    printf(__VA_ARGS__); \
+    printf("\n");        \
   }
 #else
 #define SPDP_LOG(...) //
 #endif
 
-namespace rtps {
-class Participant;
-class Writer;
-class Reader;
-class ReaderCacheChange;
+namespace rtps
+{
+  class Participant;
+  class Writer;
+  class Reader;
+  class ReaderCacheChange;
 
-class SPDPAgent {
-public:
-  ~SPDPAgent();
-  void init(Participant &participant, BuiltInEndpoints &endpoints);
-  void start();
-  void stop();
+  class SPDPAgent
+  {
+  public:
+    ~SPDPAgent();
+    void init(Participant &participant, BuiltInEndpoints &endpoints);
+    void start();
+    void stop();
 
-private:
-  Participant *mp_participant = nullptr;
-  BuiltInEndpoints m_buildInEndpoints;
-  bool m_running = false;
-  std::array<uint8_t, 400> m_outputBuffer{}; // TODO check required size
-  std::array<uint8_t, 400> m_inputBuffer{};
-  ParticipantProxyData m_proxyDataBuffer{};
-  ucdrBuffer m_microbuffer{};
-  uint8_t m_cycleHB = 0;
+  private:
+    Participant *mp_participant = nullptr;
+    BuiltInEndpoints m_buildInEndpoints;
+    bool m_running = false;
+    std::array<uint8_t, 400> m_outputBuffer{}; // TODO check required size
+    std::array<uint8_t, 400> m_inputBuffer{};
+    // std::array<uint8_t, 800> m_outputBuffer{}; 400から倍にした
+    // std::array<uint8_t, 800> m_inputBuffer{};
+    ParticipantProxyData m_proxyDataBuffer{};
+    ucdrBuffer m_microbuffer{};
+    uint8_t m_cycleHB = 0;
 
-  sys_mutex_t m_mutex;
-  bool initialized = false;
-  static void receiveCallback(void *callee,
-                              const ReaderCacheChange &cacheChange);
-  void handleSPDPPackage(const ReaderCacheChange &cacheChange);
-  void configureEndianessAndOptions(ucdrBuffer &buffer);
-  void processProxyData();
-  bool addProxiesForBuiltInEndpoints();
+    sys_mutex_t m_mutex;
+    bool initialized = false;
+    static void receiveCallback(void *callee,
+                                const ReaderCacheChange &cacheChange);
+    void handleSPDPPackage(const ReaderCacheChange &cacheChange);
+    void configureEndianessAndOptions(ucdrBuffer &buffer);
+    void processProxyData();
+    bool addProxiesForBuiltInEndpoints();
 
-  void addInlineQos();
-  void addParticipantParameters();
-  void endCurrentList();
+    void addInlineQos();
+    void addParticipantParameters();
+    void endCurrentList();
 
-  static void runBroadcast(void *args);
-};
+    static void runBroadcast(void *args);
+  };
 } // namespace rtps
 
 #endif // RTPS_SPDP_H

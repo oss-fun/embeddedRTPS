@@ -33,205 +33,281 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #include <array>
 #include <cstdint>
 
-namespace rtps {
-namespace MessageFactory {
-const std::array<uint8_t, 4> PROTOCOL_TYPE{'R', 'T', 'P', 'S'};
-const uint8_t numBytesUntilEndOfLength =
-    4; // The first bytes incl. submessagelength don't count
+namespace rtps
+{
+  namespace MessageFactory
+  {
+    const std::array<uint8_t, 4> PROTOCOL_TYPE{'R', 'T', 'P', 'S'};
+    const uint8_t numBytesUntilEndOfLength =
+        4; // The first bytes incl. submessagelength don't count
 
-template <class Buffer>
-void addHeader(Buffer &buffer, const GuidPrefix_t &guidPrefix) {
+    template <class Buffer>
+    void addHeader(Buffer &buffer, const GuidPrefix_t &guidPrefix)
+    {
 
-  Header header;
-  header.protocolName = PROTOCOL_TYPE;
-  header.protocolVersion = PROTOCOLVERSION;
-  header.vendorId = Config::VENDOR_ID;
-  header.guidPrefix = guidPrefix;
+      Header header;
+      header.protocolName = PROTOCOL_TYPE;
+      header.protocolVersion = PROTOCOLVERSION;
+      header.vendorId = Config::VENDOR_ID;
+      header.guidPrefix = guidPrefix;
 
-  serializeMessage(buffer, header);
-}
+      serializeMessage(buffer, header);
+    }
 
-template <class Buffer>
-bool addSubMessageInfoDST(Buffer &buffer, GuidPrefix_t &dst) {
-  SubmessageInfoDST msg;
-  msg.header.submessageId = SubmessageKind::INFO_DST;
-
-#if IS_LITTLE_ENDIAN
-  msg.header.flags = FLAG_LITTLE_ENDIAN;
-#else
-  msg.header.flags = FLAG_BIG_ENDIAN;
-#endif
-
-  msg.header.octetsToNextHeader = sizeof(GuidPrefix_t);
-  msg.guidPrefix = dst;
-
-  return serializeMessage(buffer, msg);
-}
-
-template <class Buffer>
-void addSubMessageTimeStamp(Buffer &buffer, bool setInvalid = false) {
-  SubmessageHeader header;
-  header.submessageId = SubmessageKind::INFO_TS;
+    template <class Buffer>
+    bool addSubMessageInfoDST(Buffer &buffer, GuidPrefix_t &dst)
+    {
+      SubmessageInfoDST msg;
+      msg.header.submessageId = SubmessageKind::INFO_DST;
 
 #if IS_LITTLE_ENDIAN
-  header.flags = FLAG_LITTLE_ENDIAN;
+      msg.header.flags = FLAG_LITTLE_ENDIAN;
 #else
-  header.flags = FLAG_BIG_ENDIAN;
+      msg.header.flags = FLAG_BIG_ENDIAN;
 #endif
 
-  if (setInvalid) {
-    header.flags |= FLAG_INVALIDATE;
-    header.octetsToNextHeader = 0;
-  } else {
-    header.octetsToNextHeader = sizeof(Time_t);
-  }
+      msg.header.octetsToNextHeader = sizeof(GuidPrefix_t);
+      msg.guidPrefix = dst;
 
-  serializeMessage(buffer, header);
+      return serializeMessage(buffer, msg);
+    }
 
-  if (!setInvalid) {
-    buffer.reserve(header.octetsToNextHeader);
-    Time_t now = getCurrentTimeStamp();
-    buffer.append(reinterpret_cast<uint8_t *>(&now.seconds),
-                  sizeof(Time_t::seconds));
-    buffer.append(reinterpret_cast<uint8_t *>(&now.fraction),
-                  sizeof(Time_t::fraction));
-  }
-}
+    template <class Buffer>
+    void addSubMessageTimeStamp(Buffer &buffer, bool setInvalid = false)
+    {
+      SubmessageHeader header;
+      header.submessageId = SubmessageKind::INFO_TS;
 
-template <class Buffer>
-void addSubMessageDataFrag(Buffer &buffer, const Buffer &filledPayload,
-                       bool containsInlineQos, const SequenceNumber_t &SN,
-                       uint32_t fragStartingNumber,
-                       uint16_t fragSize,
-                       uint32_t sampleSize,
-                       const EntityId_t &writerID, const EntityId_t &readerID) {
-  SubmessageDataFrag msg;
-  msg.header.submessageId = SubmessageKind::DATA_FRAG;
 #if IS_LITTLE_ENDIAN
-  msg.header.flags = FLAG_LITTLE_ENDIAN;
+      header.flags = FLAG_LITTLE_ENDIAN;
 #else
-  msg.header.flags = FLAG_BIG_ENDIAN;
+      header.flags = FLAG_BIG_ENDIAN;
 #endif
 
-  msg.header.octetsToNextHeader = 0;
+      if (setInvalid)
+      {
+        header.flags |= FLAG_INVALIDATE;
+        header.octetsToNextHeader = 0;
+      }
+      else
+      {
+        header.octetsToNextHeader = sizeof(Time_t);
+      }
 
-  if (containsInlineQos) {
-    msg.header.flags |= FLAG_INLINE_QOS;
-  }
+      serializeMessage(buffer, header);
 
-  msg.writerSN = SN;
-  msg.extraFlags = 0;
-  msg.readerId = readerID;
-  msg.writerId = writerID;
-  msg.fragStartingNumber = fragStartingNumber;
-  msg.fragmentsInSubmessage = 1;
-  msg.fragmentSize = fragSize;
-  msg.sampleSize = sampleSize;
+      if (!setInvalid)
+      {
+        buffer.reserve(header.octetsToNextHeader);
+        Time_t now = getCurrentTimeStamp();
+        buffer.append(reinterpret_cast<uint8_t *>(&now.seconds),
+                      sizeof(Time_t::seconds));
+        buffer.append(reinterpret_cast<uint8_t *>(&now.fraction),
+                      sizeof(Time_t::fraction));
+      }
+    }
 
-  constexpr uint16_t octetsToInlineQoS =
-         4  + 4    + 8              + 4              + 2                     + 2            + 4;
+    template <class Buffer>
+    void addSubMessageDataFrag(Buffer &buffer, const Buffer &filledPayload,
+                               bool containsInlineQos, const SequenceNumber_t &SN,
+                               uint32_t fragStartingNumber,
+                               uint16_t fragSize,
+                               uint32_t sampleSize,
+                               const EntityId_t &writerID, const EntityId_t &readerID)
+    {
+      SubmessageDataFrag msg;
+      msg.header.submessageId = SubmessageKind::DATA_FRAG;
+#if IS_LITTLE_ENDIAN
+      msg.header.flags = FLAG_LITTLE_ENDIAN;
+#else
+      msg.header.flags = FLAG_BIG_ENDIAN;
+#endif
+
+      msg.header.octetsToNextHeader = 0;
+
+      if (containsInlineQos)
+      {
+        msg.header.flags |= FLAG_INLINE_QOS;
+      }
+
+      msg.writerSN = SN;
+      msg.extraFlags = 0;
+      msg.readerId = readerID;
+      msg.writerId = writerID;
+      msg.fragStartingNumber = fragStartingNumber;
+      msg.fragmentsInSubmessage = 1;
+      msg.fragmentSize = fragSize;
+      msg.sampleSize = sampleSize;
+
+      constexpr uint16_t octetsToInlineQoS =
+          4 + 4 + 8 + 4 + 2 + 2 + 4;
       // EntityIds + SequenceNumber + FragmentNumber + fragmentsInSubmessage + fragmentSize + sampleSize
-  msg.octetsToInlineQos = octetsToInlineQoS;
+      msg.octetsToInlineQos = octetsToInlineQoS;
 
-  serializeMessage(buffer, msg);
+      serializeMessage(buffer, msg);
 
-  if (filledPayload.isValid()) {
-    Buffer shallowCopy = filledPayload;
-    buffer.append(std::move(shallowCopy));
-  }
-}
+      if (filledPayload.isValid())
+      {
+        Buffer shallowCopy = filledPayload;
+        buffer.append(std::move(shallowCopy));
+      }
+    }
 
-template <class Buffer>
-void addSubMessageData(Buffer &buffer, const Buffer &filledPayload,
-                       bool containsInlineQos, const SequenceNumber_t &SN,
-                       const EntityId_t &writerID, const EntityId_t &readerID) {
-  SubmessageData msg;
-  msg.header.submessageId = SubmessageKind::DATA;
+    /*
+    MessageFactory::addSubMessageDataFrag(info.buffer, data, false,
+                                                        next->sequenceNumber,
+                                                        fragment_start_number++,
+                                                        serialized_buf.second,
+                                                        sampleSize,
+                                                        m_attributes.endpointGuid.entityId,
+                                                        reid);
+    */
+    template <class Buffer>
+    void addSubMessageData(Buffer &buffer, const Buffer &filledPayload,
+                           bool containsInlineQos, const SequenceNumber_t &SN,
+                           const EntityId_t &writerID, const EntityId_t &readerID)
+    {
+      SubmessageData msg;
+      msg.header.submessageId = SubmessageKind::DATA;
 #if IS_LITTLE_ENDIAN
-  msg.header.flags = FLAG_LITTLE_ENDIAN;
+      msg.header.flags = FLAG_LITTLE_ENDIAN;
 #else
-  msg.header.flags = FLAG_BIG_ENDIAN;
+      msg.header.flags = FLAG_BIG_ENDIAN;
 #endif
 
-  msg.header.octetsToNextHeader = SubmessageData::getRawSize() +
-                                  filledPayload.spaceUsed() -
-                                  numBytesUntilEndOfLength;
+      msg.header.octetsToNextHeader = SubmessageData::getRawSize() +
+                                      filledPayload.spaceUsed() -
+                                      numBytesUntilEndOfLength;
+      // inlineQosがある場合はここで追加する
 
-  if (containsInlineQos) {
-    msg.header.flags |= FLAG_INLINE_QOS;
-  }
-  if (filledPayload.isValid()) {
-    msg.header.flags |= FLAG_DATA_PAYLOAD;
-  }
+      containsInlineQos = true;
+      if (containsInlineQos)
+      {
+        msg.header.flags |= FLAG_INLINE_QOS;
+      }
 
-  msg.writerSN = SN;
-  msg.extraFlags = 0;
-  msg.readerId = readerID;
-  msg.writerId = writerID;
+      // for service debug
+      if (containsInlineQos)
+      {
+        msg.header.octetsToNextHeader += 32;
+      }
 
-  constexpr uint16_t octetsToInlineQoS =
-      4 + 4 + 8; // EntityIds + SequenceNumber
-  msg.octetsToInlineQos = octetsToInlineQoS;
+      if (filledPayload.isValid())
+      {
+        msg.header.flags |= FLAG_DATA_PAYLOAD;
+      }
 
-  serializeMessage(buffer, msg);
+      msg.writerSN = SN;
+      msg.extraFlags = 0;
+      msg.readerId = readerID;
+      msg.writerId = writerID;
 
-  if (filledPayload.isValid()) {
-    Buffer shallowCopy = filledPayload;
-    buffer.append(std::move(shallowCopy));
-  }
-}
+      constexpr uint16_t octetsToInlineQoS =
+          4 + 4 + 8; // EntityIds + SequenceNumber
+      msg.octetsToInlineQos = octetsToInlineQoS;
 
-template <class Buffer>
-void addHeartbeat(Buffer &buffer, EntityId_t writerId, EntityId_t readerId,
-                  SequenceNumber_t firstSN, SequenceNumber_t lastSN,
-                  Count_t count) {
-  SubmessageHeartbeat subMsg;
-  subMsg.header.submessageId = SubmessageKind::HEARTBEAT;
-  subMsg.header.octetsToNextHeader =
-      SubmessageHeartbeat::getRawSize() - numBytesUntilEndOfLength;
+      serializeMessage(buffer, msg);
+
+      if (containsInlineQos)
+      {
+
+        // for service communication add inlineQos and sampleIdentity
+        if (!buffer.reserve(32))
+        {
+          printf("Failed to reserve space for submessage\n");
+        }
+        uint16_t PID_CUSTOM_RELATED_SAMPLE_IDENTITY = 0x800f;
+        uint16_t PID_LENGTH = 24;
+        // 12byteのguidprefixを追加
+        std::array<uint8_t, 12> guidPrefix = {0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78};
+        uint32_t entity_id = 0x22222222;
+        uint32_t sequenceNumber_high = 0x00000000;
+        uint32_t sequenceNumber_low = 0x00000001;
+        uint16_t PID_SENTINEL = 0x0001;
+
+        buffer.append(reinterpret_cast<uint8_t *>(&PID_CUSTOM_RELATED_SAMPLE_IDENTITY),
+                      sizeof(PID_CUSTOM_RELATED_SAMPLE_IDENTITY));
+        buffer.append(reinterpret_cast<uint8_t *>(&PID_LENGTH),
+                      sizeof(PID_LENGTH));
+        /* */
+        buffer.append(guidPrefix.data(), guidPrefix.size());
+        // buffer.append(msg.Header.guidPrefix.id.data(), sizeof(GuidPrefix_t));
+
+        /* entity_id  reader reqeuestを送るときに使うwriterのentity_idと対応したもの  reader.remoteReaderGuid.entityId;とかが使えるといいかも*/
+        // buffer.append(reinterpret_cast<uint8_t *>(&entity_id), sizeof(entity_id));
+        buffer.append(msg.readerId.entityKey.data(), msg.readerId.entityKey.size());
+        buffer.append(reinterpret_cast<uint8_t *>(&msg.readerId.entityKind),
+                      sizeof(EntityKind_t));
+        /* sequecenumber */
+        buffer.append(reinterpret_cast<uint8_t *>(&sequenceNumber_high),
+                      sizeof(sequenceNumber_high));
+        buffer.append(reinterpret_cast<uint8_t *>(&sequenceNumber_low), sizeof(sequenceNumber_low));
+
+        buffer.append(reinterpret_cast<uint8_t *>(&PID_SENTINEL), sizeof(PID_SENTINEL));
+      }
+      if (filledPayload.isValid())
+      {
+        Buffer shallowCopy = filledPayload;
+        buffer.append(std::move(shallowCopy)); // ここでデータを追加している?
+      }
+    }
+
+    template <class Buffer>
+    void addHeartbeat(Buffer &buffer, EntityId_t writerId, EntityId_t readerId,
+                      SequenceNumber_t firstSN, SequenceNumber_t lastSN,
+                      Count_t count)
+    {
+      SubmessageHeartbeat subMsg;
+      subMsg.header.submessageId = SubmessageKind::HEARTBEAT;
+      subMsg.header.octetsToNextHeader =
+          SubmessageHeartbeat::getRawSize() - numBytesUntilEndOfLength;
 #if IS_LITTLE_ENDIAN
-  subMsg.header.flags = FLAG_LITTLE_ENDIAN;
+      subMsg.header.flags = FLAG_LITTLE_ENDIAN;
 #else
-  subMsg.header.flags = FLAG_BIG_ENDIAN;
+      subMsg.header.flags = FLAG_BIG_ENDIAN;
 #endif
-  // Force response by not setting final flag.
+      // Force response by not setting final flag.
 
-  subMsg.writerId = writerId;
-  subMsg.readerId = readerId;
-  subMsg.firstSN = firstSN;
-  subMsg.lastSN = lastSN;
-  subMsg.count = count;
+      subMsg.writerId = writerId;
+      subMsg.readerId = readerId;
+      subMsg.firstSN = firstSN;
+      subMsg.lastSN = lastSN;
+      subMsg.count = count;
 
-  serializeMessage(buffer, subMsg);
-}
+      serializeMessage(buffer, subMsg);
+    }
 
-template <class Buffer>
-void addAckNack(Buffer &buffer, EntityId_t writerId, EntityId_t readerId,
-                SequenceNumberSet readerSNState, Count_t count,
-                bool final_flag) {
-  SubmessageAckNack subMsg;
-  subMsg.header.submessageId = SubmessageKind::ACKNACK;
+    template <class Buffer>
+    void addAckNack(Buffer &buffer, EntityId_t writerId, EntityId_t readerId,
+                    SequenceNumberSet readerSNState, Count_t count,
+                    bool final_flag)
+    {
+      SubmessageAckNack subMsg;
+      subMsg.header.submessageId = SubmessageKind::ACKNACK;
 #if IS_LITTLE_ENDIAN
-  subMsg.header.flags = FLAG_LITTLE_ENDIAN;
+      subMsg.header.flags = FLAG_LITTLE_ENDIAN;
 #else
-  subMsg.header.flags = FLAG_BIG_ENDIAN;
+      subMsg.header.flags = FLAG_BIG_ENDIAN;
 #endif
-  if (final_flag) {
-    subMsg.header.flags |= FLAG_FINAL; // For now, we don't want any response
-  } else {
-    subMsg.header.flags &= ~FLAG_FINAL; // For now, we don't want any response
-  }
-  subMsg.header.octetsToNextHeader =
-      SubmessageAckNack::getRawSize(readerSNState) - numBytesUntilEndOfLength;
+      if (final_flag)
+      {
+        subMsg.header.flags |= FLAG_FINAL; // For now, we don't want any response
+      }
+      else
+      {
+        subMsg.header.flags &= ~FLAG_FINAL; // For now, we don't want any response
+      }
+      subMsg.header.octetsToNextHeader =
+          SubmessageAckNack::getRawSize(readerSNState) - numBytesUntilEndOfLength;
 
-  subMsg.writerId = writerId;
-  subMsg.readerId = readerId;
-  subMsg.readerSNState = readerSNState;
-  subMsg.count = count;
+      subMsg.writerId = writerId;
+      subMsg.readerId = readerId;
+      subMsg.readerSNState = readerSNState;
+      subMsg.count = count;
 
-  serializeMessage(buffer, subMsg);
-}
-} // namespace MessageFactory
+      serializeMessage(buffer, subMsg);
+    }
+  } // namespace MessageFactory
 } // namespace rtps
 
 #endif // RTPS_MESSAGEFACTORY_H

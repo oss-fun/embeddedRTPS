@@ -39,18 +39,20 @@ using rtps::StatelessWriterT;
 
 #if SLW_VERBOSE && RTPS_GLOBAL_VERBOSE
 #include "rtps/utils/printutils.h"
-#define SLW_LOG(...)                                                           \
-  if (true) {                                                                  \
-    printf("[StatelessWriter %s] ", &this->m_attributes.topicName[0]);         \
-    printf(__VA_ARGS__);                                                       \
-    printf("\n");                                                              \
+#define SLW_LOG(...)                                                   \
+  if (true)                                                            \
+  {                                                                    \
+    printf("[StatelessWriter %s] ", &this->m_attributes.topicName[0]); \
+    printf(__VA_ARGS__);                                               \
+    printf("\n");                                                      \
   }
 #else
 #define SLW_LOG(...) //
 #endif
 
 template <class NetworkDriver>
-StatelessWriterT<NetworkDriver>::~StatelessWriterT() {
+StatelessWriterT<NetworkDriver>::~StatelessWriterT()
+{
   //  if(sys_mutex_valid(&m_mutex)){
   //    sys_mutex_free(&m_mutex);
   //  }
@@ -61,8 +63,10 @@ bool StatelessWriterT<NetworkDriver>::init(TopicData attributes,
                                            TopicKind_t topicKind,
                                            ThreadPool *threadPool,
                                            NetworkDriver &driver,
-                                           bool enfUnicast) {
-  if (sys_mutex_new(&m_mutex) != ERR_OK) {
+                                           bool enfUnicast)
+{
+  if (sys_mutex_new(&m_mutex) != ERR_OK)
+  {
 #if SLW_VERBOSE
     SLW_LOG("Failed to create mutex \n");
 #endif
@@ -82,43 +86,54 @@ bool StatelessWriterT<NetworkDriver>::init(TopicData attributes,
 
 template <class NetworkDriver>
 bool StatelessWriterT<NetworkDriver>::addNewMatchedReader(
-    const ReaderProxy &newProxy) {
+    const ReaderProxy &newProxy)
+{
 #if SLW_VERBOSE && RTPS_GLOBAL_VERBOSE
   SLW_LOG("New reader added with id: ");
   printGuid(newProxy.remoteReaderGuid);
 #endif
   bool success = m_proxies.add(newProxy);
-  if (!m_enforceUnicast) {
+  if (!m_enforceUnicast)
+  {
     manageSendOptions();
   }
   return success;
 }
 
 template <class NetworkDriver>
-void StatelessWriterT<NetworkDriver>::manageSendOptions() {
+void StatelessWriterT<NetworkDriver>::manageSendOptions()
+{
   SLW_LOG("Search for Multicast Partners!\n");
-  for (auto &proxy : m_proxies) {
+  for (auto &proxy : m_proxies)
+  {
     if (proxy.remoteMulticastLocator.kind ==
-        LocatorKind_t::LOCATOR_KIND_INVALID) {
+        LocatorKind_t::LOCATOR_KIND_INVALID)
+    {
       proxy.suppressUnicast = false;
       proxy.useMulticast = false;
-    } else {
+    }
+    else
+    {
       bool found = false;
-      for (auto &avproxy : m_proxies) {
+      for (auto &avproxy : m_proxies)
+      {
         if (avproxy.remoteMulticastLocator.kind ==
                 LocatorKind_t::LOCATOR_KIND_UDPv4 &&
             avproxy.remoteMulticastLocator.getIp4Address().addr ==
                 proxy.remoteMulticastLocator.getIp4Address().addr &&
             avproxy.remoteLocator.getIp4Address().addr !=
-                proxy.remoteLocator.getIp4Address().addr) {
-          if (avproxy.suppressUnicast == false) {
+                proxy.remoteLocator.getIp4Address().addr)
+        {
+          if (avproxy.suppressUnicast == false)
+          {
             avproxy.useMulticast = false;
             avproxy.suppressUnicast = true;
             proxy.useMulticast = true;
             proxy.suppressUnicast = true;
             SLW_LOG("Found Multicast Partner!\n");
             if (avproxy.remoteReaderGuid.entityId !=
-                proxy.remoteReaderGuid.entityId) {
+                proxy.remoteReaderGuid.entityId)
+            {
               proxy.unknown_eid = true;
               SLW_LOG("Found different EntityIds, using UNKNOWN_ENTITYID\n");
             }
@@ -126,7 +141,8 @@ void StatelessWriterT<NetworkDriver>::manageSendOptions() {
           found = true;
         }
       }
-      if (!found) {
+      if (!found)
+      {
         proxy.useMulticast = false;
         proxy.suppressUnicast = false;
       }
@@ -135,8 +151,10 @@ void StatelessWriterT<NetworkDriver>::manageSendOptions() {
 }
 
 template <class NetworkDriver>
-void StatelessWriterT<NetworkDriver>::resetSendOptions() {
-  for (auto &proxy : m_proxies) {
+void StatelessWriterT<NetworkDriver>::resetSendOptions()
+{
+  for (auto &proxy : m_proxies)
+  {
     proxy.suppressUnicast = false;
     proxy.useMulticast = false;
     proxy.unknown_eid = false;
@@ -145,12 +163,15 @@ void StatelessWriterT<NetworkDriver>::resetSendOptions() {
 }
 
 template <class NetworkDriver>
-void StatelessWriterT<NetworkDriver>::removeReader(const Guid_t &guid) {
+void StatelessWriterT<NetworkDriver>::removeReader(const Guid_t &guid)
+{
   Lock lock(m_mutex);
-  auto isElementToRemove = [&](const ReaderProxy &proxy) {
+  auto isElementToRemove = [&](const ReaderProxy &proxy)
+  {
     return proxy.remoteReaderGuid == guid;
   };
-  auto thunk = [](void *arg, const ReaderProxy &value) {
+  auto thunk = [](void *arg, const ReaderProxy &value)
+  {
     return (*static_cast<decltype(isElementToRemove) *>(arg))(value);
   };
 
@@ -160,12 +181,15 @@ void StatelessWriterT<NetworkDriver>::removeReader(const Guid_t &guid) {
 
 template <class NetworkDriver>
 void StatelessWriterT<NetworkDriver>::removeReaderOfParticipant(
-    const GuidPrefix_t &guidPrefix) {
+    const GuidPrefix_t &guidPrefix)
+{
   Lock lock(m_mutex);
-  auto isElementToRemove = [&](const ReaderProxy &proxy) {
+  auto isElementToRemove = [&](const ReaderProxy &proxy)
+  {
     return proxy.remoteReaderGuid.prefix == guidPrefix;
   };
-  auto thunk = [](void *arg, const ReaderProxy &value) {
+  auto thunk = [](void *arg, const ReaderProxy &value)
+  {
     return (*static_cast<decltype(isElementToRemove) *>(arg))(value);
   };
 
@@ -176,22 +200,27 @@ void StatelessWriterT<NetworkDriver>::removeReaderOfParticipant(
 template <typename NetworkDriver>
 const CacheChange *StatelessWriterT<NetworkDriver>::newChangeCallback(
     rtps::ChangeKind_t kind, CacheChange::SerializerCallback func,
-    FragDataSize_t size) {
-  if (isIrrelevant(kind)) {
+    FragDataSize_t size)
+{
+  if (isIrrelevant(kind))
+  {
     return nullptr;
   }
   Lock lock(m_mutex);
 
-  if (m_history.isFull()) {
+  if (m_history.isFull())
+  {
     SequenceNumber_t newMin = ++SequenceNumber_t(m_history.getSeqNumMin());
-    if (m_nextSequenceNumberToSend < newMin) {
+    if (m_nextSequenceNumberToSend < newMin)
+    {
       m_nextSequenceNumberToSend =
           newMin; // Make sure we have the correct sn to send
     }
   }
 
   auto *result = m_history.addChange(func, size);
-  if (mp_threadPool != nullptr) {
+  if (mp_threadPool != nullptr)
+  {
     mp_threadPool->addWorkload(this);
   }
 
@@ -201,22 +230,27 @@ const CacheChange *StatelessWriterT<NetworkDriver>::newChangeCallback(
 
 template <typename NetworkDriver>
 const CacheChange *StatelessWriterT<NetworkDriver>::newChange(
-    rtps::ChangeKind_t kind, const uint8_t *data, DataSize_t size) {
-  if (isIrrelevant(kind)) {
+    rtps::ChangeKind_t kind, const uint8_t *data, DataSize_t size)
+{
+  if (isIrrelevant(kind))
+  {
     return nullptr;
   }
   Lock lock(m_mutex);
 
-  if (m_history.isFull()) {
+  if (m_history.isFull())
+  {
     SequenceNumber_t newMin = ++SequenceNumber_t(m_history.getSeqNumMin());
-    if (m_nextSequenceNumberToSend < newMin) {
+    if (m_nextSequenceNumberToSend < newMin)
+    {
       m_nextSequenceNumberToSend =
           newMin; // Make sure we have the correct sn to send
     }
   }
 
   auto *result = m_history.addChange(data, size);
-  if (mp_threadPool != nullptr) {
+  if (mp_threadPool != nullptr)
+  {
     mp_threadPool->addWorkload(this);
   }
 
@@ -225,24 +259,28 @@ const CacheChange *StatelessWriterT<NetworkDriver>::newChange(
 }
 
 template <typename NetworkDriver>
-void StatelessWriterT<NetworkDriver>::setAllChangesToUnsent() {
+void StatelessWriterT<NetworkDriver>::setAllChangesToUnsent()
+{
   Lock lock(m_mutex);
 
   m_nextSequenceNumberToSend = m_history.getSeqNumMin();
 
-  if (mp_threadPool != nullptr) {
+  if (mp_threadPool != nullptr)
+  {
     mp_threadPool->addWorkload(this);
   }
 }
 
 template <typename NetworkDriver>
 void StatelessWriterT<NetworkDriver>::onNewAckNack(
-    const SubmessageAckNack & /*msg*/, const GuidPrefix_t &sourceGuidPrefix) {
+    const SubmessageAckNack & /*msg*/, const GuidPrefix_t &sourceGuidPrefix)
+{
   // Too lazy to respond
 }
 
 template <typename NetworkDriver>
-bool StatelessWriterT<NetworkDriver>::isIrrelevant(ChangeKind_t kind) const {
+bool StatelessWriterT<NetworkDriver>::isIrrelevant(ChangeKind_t kind) const
+{
   // Right now we only allow alive changes
   // return kind == ChangeKind_t::INVALID || (m_topicKind == TopicKind_t::NO_KEY
   // && kind != ChangeKind_t::ALIVE);
@@ -250,31 +288,38 @@ bool StatelessWriterT<NetworkDriver>::isIrrelevant(ChangeKind_t kind) const {
 }
 
 template <typename NetworkDriver>
-void StatelessWriterT<NetworkDriver>::progress() {
+void StatelessWriterT<NetworkDriver>::progress()
+{
   // TODO smarter packaging e.g. by creating MessageStruct and serialize after
   // adjusting values Reusing the pbuf is not possible. See
   // https://www.nongnu.org/lwip/2_1_x/raw_api.html (Zero-Copy MACs)
 
-  if (m_proxies.getNumElements() == 0) {
+  if (m_proxies.getNumElements() == 0)
+  {
     SLW_LOG("No Proxy!\n");
   }
 
-  for (const auto &proxy : m_proxies) {
+  for (const auto &proxy : m_proxies)
+  {
     SLW_LOG("Progess.\n");
     // Do nothing, if someone else sends for me... (Multicast)
-    if (proxy.useMulticast || !proxy.suppressUnicast || m_enforceUnicast) {
+    if (proxy.useMulticast || !proxy.suppressUnicast || m_enforceUnicast)
+    {
 
       {
         Lock lock(m_mutex);
         const CacheChange *next =
             m_history.getChangeBySN(m_nextSequenceNumberToSend);
-        if (next == nullptr) {
+        if (next == nullptr)
+        {
           SLW_LOG("Couldn't get a new CacheChange with SN "
                   "(%i,%i)\n",
                   m_nextSequenceNumberToSend.high,
                   m_nextSequenceNumberToSend.low);
           return;
-        } else {
+        }
+        else
+        {
           SLW_LOG("Sending change with SN (%i,%i)\n",
                   m_nextSequenceNumberToSend.high,
                   m_nextSequenceNumberToSend.low);
@@ -284,19 +329,25 @@ void StatelessWriterT<NetworkDriver>::progress() {
         // different ones...
         // TODO: mybe enhance by using UNKNOWN only if ids are really different
         EntityId_t reid;
-        if (proxy.useMulticast && !m_enforceUnicast && proxy.unknown_eid) {
+        if (proxy.useMulticast && !m_enforceUnicast && proxy.unknown_eid)
+        {
           reid = ENTITYID_UNKNOWN;
-        } else {
+        }
+        else
+        {
           reid = proxy.remoteReaderGuid.entityId;
         }
 
-        if (next->serializerCallback) {
+        if (next->serializerCallback)
+        {
           int fragment_start_number = 1;
           FragDataSize_t sampleSize = next->sizeToBeSerialized;
           CacheChange::SerializedBuf serialized_buf;
-          while(1) {
+          while (1)
+          {
             serialized_buf = next->serializerCallback();
-            if (0 != serialized_buf.second) {
+            if (0 != serialized_buf.second)
+            {
               PBufWrapper data;
               PacketInfo info;
               info.srcPort = m_packetInfo.srcPort;
@@ -307,43 +358,61 @@ void StatelessWriterT<NetworkDriver>::progress() {
               data.append(serialized_buf.first,
                           serialized_buf.second);
               MessageFactory::addSubMessageDataFrag(info.buffer, data, false,
-                                          next->sequenceNumber,
-                                          fragment_start_number ++,
-                                          serialized_buf.second,
-                                          sampleSize,
-                                          m_attributes.endpointGuid.entityId,
-                                          reid); // TODO
+                                                    next->sequenceNumber,
+                                                    fragment_start_number++,
+                                                    serialized_buf.second,
+                                                    sampleSize,
+                                                    m_attributes.endpointGuid.entityId,
+                                                    reid); // TODO
+
               // Just usable for IPv4
               // Decide which locator to be used unicast/multicast
-              if (proxy.useMulticast && !m_enforceUnicast) {
+              if (proxy.useMulticast && !m_enforceUnicast)
+              {
                 info.destAddr = proxy.remoteMulticastLocator.getIp4Address();
                 info.destPort = (Ip4Port_t)proxy.remoteMulticastLocator.port;
-              } else {
+              }
+              else
+              {
                 info.destAddr = proxy.remoteLocator.getIp4Address();
                 info.destPort = (Ip4Port_t)proxy.remoteLocator.port;
               }
 
               m_transport->sendPacket(info);
-            } else {
+            }
+            else
+            {
               break;
             }
           }
-        } else {
+        }
+        else
+        {
           PacketInfo info;
           info.srcPort = m_packetInfo.srcPort;
 
           MessageFactory::addHeader(info.buffer, m_attributes.endpointGuid.prefix);
           MessageFactory::addSubMessageTimeStamp(info.buffer);
+          // どうやってinlineqosを追加して、サブメッセージにsample_identityを追加するか
           MessageFactory::addSubMessageData(info.buffer, next->data, false,
-                                          next->sequenceNumber,
-                                          m_attributes.endpointGuid.entityId,
-                                          reid); // TODO
+                                            next->sequenceNumber,
+                                            m_attributes.endpointGuid.entityId,
+                                            reid); // TODO
+          /* for service communication add inlineQos and sampleIdentity */
+          // MessageFactory::addSubMessageData(info.buffer, next->data, true,
+          //                                   next->sequenceNumber,
+          //                                   m_attributes.endpointGuid.entityId,
+          //                                   reid); // TODO
+
           // Just usable for IPv4
           // Decide which locator to be used unicast/multicast
-          if (proxy.useMulticast && !m_enforceUnicast) {
+          if (proxy.useMulticast && !m_enforceUnicast)
+          {
             info.destAddr = proxy.remoteMulticastLocator.getIp4Address();
             info.destPort = (Ip4Port_t)proxy.remoteMulticastLocator.port;
-          } else {
+          }
+          else
+          {
             info.destAddr = proxy.remoteLocator.getIp4Address();
             info.destPort = (Ip4Port_t)proxy.remoteLocator.port;
           }

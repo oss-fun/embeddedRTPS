@@ -27,11 +27,12 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #include "rtps/utils/udpUtils.h"
 
 #if DOMAIN_VERBOSE && RTPS_GLOBAL_VERBOSE
-#define DOMAIN_LOG(...)                                                        \
-  if (true) {                                                                  \
-    printf("[Domain] ");                                                       \
-    printf(__VA_ARGS__);                                                       \
-    printf("\n");                                                              \
+#define DOMAIN_LOG(...)  \
+  if (true)              \
+  {                      \
+    printf("[Domain] "); \
+    printf(__VA_ARGS__); \
+    printf("\n");        \
   }
 #else
 #define DOMAIN_LOG(...) //
@@ -41,7 +42,8 @@ using rtps::Domain;
 
 Domain::Domain()
     : m_threadPool(receiveJumppad, this),
-      m_transport(ThreadPool::readCallback, &m_threadPool) {
+      m_transport(ThreadPool::readCallback, &m_threadPool)
+{
   m_transport.createUdpConnection(getUserMulticastPort());
   m_transport.createUdpConnection(getBuiltInMulticastPort());
   m_transport.joinMultiCastGroup(transformIP4ToU32(239, 255, 0, 1));
@@ -49,14 +51,18 @@ Domain::Domain()
 
 Domain::~Domain() { stop(); }
 
-bool Domain::completeInit() {
+// SPSPagentをスタートさせる
+bool Domain::completeInit()
+{
   m_initComplete = m_threadPool.startThreads();
 
-  if (!m_initComplete) {
+  if (!m_initComplete)
+  {
     DOMAIN_LOG("Failed starting threads\n");
   }
 
-  for (auto i = 0; i < m_nextParticipantId; i++) {
+  for (auto i = 0; i < m_nextParticipantId; i++)
+  {
     m_participants[i].getSPDPAgent().start();
   }
   return m_initComplete;
@@ -64,69 +70,89 @@ bool Domain::completeInit() {
 
 void Domain::stop() { m_threadPool.stopThreads(); }
 
-void Domain::receiveJumppad(void *callee, const PacketInfo &packet) {
+// readerにメッセージが来ると待機スレッド(rtps::ThreadPool::doReaderWork)から、このコールバックが呼ばれる
+void Domain::receiveJumppad(void *callee, const PacketInfo &packet)
+{
   auto domain = static_cast<Domain *>(callee);
   domain->receiveCallback(packet);
 }
 
-void Domain::receiveCallback(const PacketInfo &packet) {
-  if (packet.buffer.firstElement->next != nullptr) {
+void Domain::receiveCallback(const PacketInfo &packet)
+{
+  if (packet.buffer.firstElement->next != nullptr)
+  {
 
     DOMAIN_LOG("Cannot handle multiple elements chained. You might "
                "want to increase PBUF_POOL_BUFSIZE\n");
   }
 
-  if (isMetaMultiCastPort(packet.destPort)) {
+  if (isMetaMultiCastPort(packet.destPort))
+  {
     // Pass to all
     DOMAIN_LOG("Domain: Multicast to port %u\n", packet.destPort);
-    for (auto i = 0; i < m_nextParticipantId - PARTICIPANT_START_ID; ++i) {
+    for (auto i = 0; i < m_nextParticipantId - PARTICIPANT_START_ID; ++i)
+    {
       m_participants[i].newMessage(
           static_cast<uint8_t *>(packet.buffer.firstElement->payload),
           packet.buffer.firstElement->len);
     }
     // First Check if UserTraffic Multicast
-  } else if (isUserMultiCastPort(packet.destPort)) {
+  }
+  else if (isUserMultiCastPort(packet.destPort))
+  {
     // Pass to Participant with assigned Multicast Adress (Port ist everytime
     // the same)
     DOMAIN_LOG("Domain: Got user multicast message on port %u\n",
                packet.destPort);
-    for (auto i = 0; i < m_nextParticipantId - PARTICIPANT_START_ID; ++i) {
-      if (m_participants[i].hasReaderWithMulticastLocator(packet.destAddr)) {
+    for (auto i = 0; i < m_nextParticipantId - PARTICIPANT_START_ID; ++i)
+    {
+      if (m_participants[i].hasReaderWithMulticastLocator(packet.destAddr))
+      {
         DOMAIN_LOG("Domain: Forward Multicast only to Participant: %u\n", i);
         m_participants[i].newMessage(
             static_cast<uint8_t *>(packet.buffer.firstElement->payload),
             packet.buffer.firstElement->len);
       }
     }
-  } else {
+  }
+  else
+  {
     // Pass to addressed one only (Unicast, by Port)
     ParticipantId_t id = getParticipantIdFromUnicastPort(
         packet.destPort, isUserPort(packet.destPort));
-    if (id != PARTICIPANT_ID_INVALID) {
+    if (id != PARTICIPANT_ID_INVALID)
+    {
       DOMAIN_LOG("Domain: Got unicast message on port %u\n", packet.destPort);
       if (id < m_nextParticipantId &&
-          id >= PARTICIPANT_START_ID) { // added extra check to avoid segfault
-                                        // (id below START_ID)
+          id >= PARTICIPANT_START_ID)
+      { // added extra check to avoid segfault
+        // (id below START_ID)
         m_participants[id - PARTICIPANT_START_ID].newMessage(
             static_cast<uint8_t *>(packet.buffer.firstElement->payload),
-            packet.buffer.firstElement->len);
-      } else {
+            packet.buffer.firstElement->len); // ここでパケットを処理している
+      }
+      else
+      {
         DOMAIN_LOG("Domain: Participant id too high or unplausible.\n");
       }
-    } else {
+    }
+    else
+    {
       DOMAIN_LOG("Domain: Got message to port %u: no matching participant\n",
                  packet.destPort);
     }
   }
 }
 
-rtps::Participant *Domain::createParticipant() {
+rtps::Participant *Domain::createParticipant()
+{
 
   DOMAIN_LOG("Domain: Creating new participant.\n");
 
   auto nextSlot =
       static_cast<uint8_t>(m_nextParticipantId - PARTICIPANT_START_ID);
-  if (m_initComplete || m_participants.size() <= nextSlot) {
+  if (m_initComplete || m_participants.size() <= nextSlot)
+  {
     return nullptr;
   }
 
@@ -138,7 +164,8 @@ rtps::Participant *Domain::createParticipant() {
   return &entry;
 }
 
-void Domain::createBuiltinWritersAndReaders(Participant &part) {
+void Domain::createBuiltinWritersAndReaders(Participant &part)
+{
   // SPDP
   StatelessWriter &spdpWriter = m_statelessWriters[m_numStatelessWriters++];
   StatelessReader &spdpReader = m_statelessReaders[m_numStatelessReaders++];
@@ -211,29 +238,38 @@ void Domain::createBuiltinWritersAndReaders(Participant &part) {
   part.addBuiltInEndpoints(endpoints);
 }
 
-void Domain::registerPort(const Participant &part) {
+void Domain::registerPort(const Participant &part)
+{
   m_transport.createUdpConnection(getUserUnicastPort(part.m_participantId));
   m_transport.createUdpConnection(getBuiltInUnicastPort(part.m_participantId));
 }
 
-void Domain::registerMulticastPort(FullLengthLocator mcastLocator) {
-  if (mcastLocator.kind == LocatorKind_t::LOCATOR_KIND_UDPv4) {
+void Domain::registerMulticastPort(FullLengthLocator mcastLocator)
+{
+  if (mcastLocator.kind == LocatorKind_t::LOCATOR_KIND_UDPv4)
+  {
     m_transport.createUdpConnection(mcastLocator.getLocatorPort());
   }
 }
 
 rtps::Reader *Domain::readerExists(Participant &part, const char *topicName,
-                                   const char *typeName, bool reliable) {
-  if (reliable) {
-    for (unsigned int i = 0; i < m_numStatefulReaders; i++) {
-      if (m_statefulReaders[i].isInitialized()) {
+                                   const char *typeName, bool reliable)
+{
+  if (reliable)
+  {
+    for (unsigned int i = 0; i < m_numStatefulReaders; i++)
+    {
+      if (m_statefulReaders[i].isInitialized())
+      {
         if (strncmp(m_statefulReaders[i].m_attributes.topicName, topicName,
-                    Config::MAX_TYPENAME_LENGTH) != 0) {
+                    Config::MAX_TYPENAME_LENGTH) != 0)
+        {
           continue;
         }
 
         if (strncmp(m_statefulReaders[i].m_attributes.typeName, typeName,
-                    Config::MAX_TYPENAME_LENGTH) != 0) {
+                    Config::MAX_TYPENAME_LENGTH) != 0)
+        {
           continue;
         }
 
@@ -243,16 +279,22 @@ rtps::Reader *Domain::readerExists(Participant &part, const char *topicName,
         return &m_statefulReaders[i];
       }
     }
-  } else {
-    for (unsigned int i = 0; i < m_numStatelessReaders; i++) {
-      if (m_statelessReaders[i].isInitialized()) {
+  }
+  else
+  {
+    for (unsigned int i = 0; i < m_numStatelessReaders; i++)
+    {
+      if (m_statelessReaders[i].isInitialized())
+      {
         if (strncmp(m_statelessReaders[i].m_attributes.topicName, topicName,
-                    Config::MAX_TYPENAME_LENGTH) != 0) {
+                    Config::MAX_TYPENAME_LENGTH) != 0)
+        {
           continue;
         }
 
         if (strncmp(m_statelessReaders[i].m_attributes.typeName, typeName,
-                    Config::MAX_TYPENAME_LENGTH) != 0) {
+                    Config::MAX_TYPENAME_LENGTH) != 0)
+        {
           continue;
         }
 
@@ -267,17 +309,23 @@ rtps::Reader *Domain::readerExists(Participant &part, const char *topicName,
 }
 
 rtps::Writer *Domain::writerExists(Participant &part, const char *topicName,
-                                   const char *typeName, bool reliable) {
-  if (reliable) {
-    for (unsigned int i = 0; i < m_numStatefulWriters; i++) {
-      if (m_statefulWriters[i].isInitialized()) {
+                                   const char *typeName, bool reliable)
+{
+  if (reliable)
+  {
+    for (unsigned int i = 0; i < m_numStatefulWriters; i++)
+    {
+      if (m_statefulWriters[i].isInitialized())
+      {
         if (strncmp(m_statefulWriters[i].m_attributes.topicName, topicName,
-                    Config::MAX_TYPENAME_LENGTH) != 0) {
+                    Config::MAX_TYPENAME_LENGTH) != 0)
+        {
           continue;
         }
 
         if (strncmp(m_statefulWriters[i].m_attributes.typeName, typeName,
-                    Config::MAX_TYPENAME_LENGTH) != 0) {
+                    Config::MAX_TYPENAME_LENGTH) != 0)
+        {
           continue;
         }
 
@@ -286,16 +334,22 @@ rtps::Writer *Domain::writerExists(Participant &part, const char *topicName,
         return &m_statefulWriters[i];
       }
     }
-  } else {
-    for (unsigned int i = 0; i < m_numStatelessWriters; i++) {
-      if (m_statelessWriters[i].isInitialized()) {
+  }
+  else
+  {
+    for (unsigned int i = 0; i < m_numStatelessWriters; i++)
+    {
+      if (m_statelessWriters[i].isInitialized())
+      {
         if (strncmp(m_statelessWriters[i].m_attributes.topicName, topicName,
-                    Config::MAX_TYPENAME_LENGTH) != 0) {
+                    Config::MAX_TYPENAME_LENGTH) != 0)
+        {
           continue;
         }
 
         if (strncmp(m_statelessWriters[i].m_attributes.typeName, typeName,
-                    Config::MAX_TYPENAME_LENGTH) != 0) {
+                    Config::MAX_TYPENAME_LENGTH) != 0)
+        {
           continue;
         }
 
@@ -309,14 +363,17 @@ rtps::Writer *Domain::writerExists(Participant &part, const char *topicName,
   return nullptr;
 }
 
+// 初期設定でenforceUnicast= false
 rtps::Writer *Domain::createWriter(Participant &part, const char *topicName,
                                    const char *typeName, bool reliable,
-                                   bool enforceUnicast) {
+                                   bool enforceUnicast)
+{
 
   // Check if there is enough capacity for more writers
   if ((reliable && m_statefulWriters.size() <= m_numStatefulWriters) ||
       (!reliable && m_statelessWriters.size() <= m_numStatelessWriters) ||
-      part.isWritersFull()) {
+      part.isWritersFull())
+  {
 
     DOMAIN_LOG("No Writer created. Max Number of Writers reached.\n");
 
@@ -327,7 +384,9 @@ rtps::Writer *Domain::createWriter(Participant &part, const char *topicName,
   TopicData attributes;
 
   if (strlen(topicName) > Config::MAX_TOPICNAME_LENGTH ||
-      strlen(typeName) > Config::MAX_TYPENAME_LENGTH) {
+      strlen(typeName) > Config::MAX_TYPENAME_LENGTH)
+  {
+    DOMAIN_LOG("No Writer created. stopping  over 40 topic_len=%d type_len%d\n", strlen(topicName), strlen(typeName)); // でない
     return nullptr;
   }
   strcpy(attributes.topicName, topicName);
@@ -341,7 +400,8 @@ rtps::Writer *Domain::createWriter(Participant &part, const char *topicName,
 
   DOMAIN_LOG("Creating writer[%s, %s]\n", topicName, typeName);
 
-  if (reliable) {
+  if (reliable)
+  {
     attributes.reliabilityKind = ReliabilityKind_t::RELIABLE;
 
     StatefulWriter &writer = m_statefulWriters[m_numStatefulWriters++];
@@ -350,7 +410,9 @@ rtps::Writer *Domain::createWriter(Participant &part, const char *topicName,
 
     part.addWriter(&writer);
     return &writer;
-  } else {
+  }
+  else
+  {
     attributes.reliabilityKind = ReliabilityKind_t::BEST_EFFORT;
 
     StatelessWriter &writer = m_statelessWriters[m_numStatelessWriters++];
@@ -364,10 +426,12 @@ rtps::Writer *Domain::createWriter(Participant &part, const char *topicName,
 
 rtps::Reader *Domain::createReader(Participant &part, const char *topicName,
                                    const char *typeName, bool reliable,
-                                   ip4_addr_t mcastaddress) {
+                                   ip4_addr_t mcastaddress)
+{
   if ((reliable && m_statefulReaders.size() <= m_numStatefulReaders) ||
       (!reliable && m_statelessReaders.size() <= m_numStatelessReaders) ||
-      part.isReadersFull()) {
+      part.isReadersFull())
+  {
 
     DOMAIN_LOG("No Reader created. Max Number of Readers reached.\n");
 
@@ -378,7 +442,8 @@ rtps::Reader *Domain::createReader(Participant &part, const char *topicName,
   TopicData attributes;
 
   if (strlen(topicName) > Config::MAX_TOPICNAME_LENGTH ||
-      strlen(typeName) > Config::MAX_TYPENAME_LENGTH) {
+      strlen(typeName) > Config::MAX_TYPENAME_LENGTH)
+  {
     return nullptr;
   }
   strcpy(attributes.topicName, topicName);
@@ -388,8 +453,10 @@ rtps::Reader *Domain::createReader(Participant &part, const char *topicName,
       part.getNextUserEntityKey(),
       EntityKind_t::USER_DEFINED_READER_WITHOUT_KEY};
   attributes.unicastLocator = getUserUnicastLocator(part.m_participantId);
-  if (!isZeroAddress(mcastaddress)) {
-    if (ip4_addr_ismulticast(&mcastaddress)) {
+  if (!isZeroAddress(mcastaddress))
+  {
+    if (ip4_addr_ismulticast(&mcastaddress))
+    {
       attributes.multicastLocator = rtps::FullLengthLocator::createUDPv4Locator(
           ip4_addr1(&mcastaddress), ip4_addr2(&mcastaddress),
           ip4_addr3(&mcastaddress), ip4_addr4(&mcastaddress),
@@ -399,8 +466,9 @@ rtps::Reader *Domain::createReader(Participant &part, const char *topicName,
       registerMulticastPort(attributes.multicastLocator);
 
       DOMAIN_LOG("Multicast enabled!\n");
-
-    } else {
+    }
+    else
+    {
 
       DOMAIN_LOG("This is not a Multicastaddress!\n");
     }
@@ -409,8 +477,10 @@ rtps::Reader *Domain::createReader(Participant &part, const char *topicName,
 
   DOMAIN_LOG("Creating reader[%s, %s]\n", topicName, typeName);
 
-  if (reliable) {
-    if (m_numStatefulReaders == m_statefulReaders.size()) {
+  if (reliable)
+  {
+    if (m_numStatefulReaders == m_statefulReaders.size())
+    {
       return nullptr;
     }
 
@@ -419,12 +489,16 @@ rtps::Reader *Domain::createReader(Participant &part, const char *topicName,
     StatefulReader &reader = m_statefulReaders[m_numStatefulReaders++];
     reader.init(attributes, m_transport);
 
-    if (!part.addReader(&reader)) {
+    if (!part.addReader(&reader))
+    {
       return nullptr;
     }
     return &reader;
-  } else {
-    if (m_numStatelessReaders == m_statelessReaders.size()) {
+  }
+  else
+  {
+    if (m_numStatelessReaders == m_statelessReaders.size())
+    {
       return nullptr;
     }
 
@@ -433,14 +507,16 @@ rtps::Reader *Domain::createReader(Participant &part, const char *topicName,
     StatelessReader &reader = m_statelessReaders[m_numStatelessReaders++];
     reader.init(attributes);
 
-    if (!part.addReader(&reader)) {
+    if (!part.addReader(&reader))
+    {
       return nullptr;
     }
     return &reader;
   }
 }
 
-rtps::GuidPrefix_t Domain::generateGuidPrefix(ParticipantId_t id) const {
+rtps::GuidPrefix_t Domain::generateGuidPrefix(ParticipantId_t id) const
+{
   GuidPrefix_t prefix = Config::BASE_GUID_PREFIX;
 #if defined(unix) || defined(__unix__)
   srand(time(nullptr));
@@ -448,7 +524,8 @@ rtps::GuidPrefix_t Domain::generateGuidPrefix(ParticipantId_t id) const {
   unsigned int seed = (int)xTaskGetTickCount();
   srand(seed);
 #endif
-  for (auto i = 0; i < rtps::Config::BASE_GUID_PREFIX.id.size(); i++) {
+  for (auto i = 0; i < rtps::Config::BASE_GUID_PREFIX.id.size(); i++)
+  {
     prefix.id[i] = (rand() % 256);
   }
   prefix.id[prefix.id.size() - 1] = *reinterpret_cast<uint8_t *>(&id);

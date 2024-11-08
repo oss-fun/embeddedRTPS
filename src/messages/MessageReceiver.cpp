@@ -34,11 +34,12 @@ using rtps::MessageReceiver;
 
 #if RECV_VERBOSE && RTPS_GLOBAL_VERBOSE
 #include "rtps/utils/printutils.h"
-#define RECV_LOG(...)                                                          \
-  if (true) {                                                                  \
-    printf("[RECV] ");                                                         \
-    printf(__VA_ARGS__);                                                       \
-    printf("\n");                                                              \
+#define RECV_LOG(...)    \
+  if (true)              \
+  {                      \
+    printf("[RECV] ");   \
+    printf(__VA_ARGS__); \
+    printf("\n");        \
   }
 #else
 #define RECV_LOG(...) //
@@ -46,23 +47,34 @@ using rtps::MessageReceiver;
 
 MessageReceiver::MessageReceiver(Participant *part) : mp_part(part) {}
 
-void MessageReceiver::resetState() {
+void MessageReceiver::resetState()
+{
   sourceGuidPrefix = GUIDPREFIX_UNKNOWN;
   sourceVersion = PROTOCOLVERSION;
   sourceVendor = VENDOR_UNKNOWN;
   haveTimeStamp = false;
 }
 
-bool MessageReceiver::processMessage(const uint8_t *data, DataSize_t size) {
+/*
+headerとsubmessageの解析をしている
+exampleinput :echobackstring
+payload:RTPS\002\003\001\017\001\017\r\027t\276\034a プロトコルバージョンとかが含まれる
+len:120
+*/
+bool MessageReceiver::processMessage(const uint8_t *data, DataSize_t size)
+{
   resetState();
-  MessageProcessingInfo msgInfo(data, size);
+  MessageProcessingInfo msgInfo(data, size); // headerの解析用
 
-  if (!processHeader(msgInfo)) {
+  if (!processHeader(msgInfo))
+  {
     return false;
   }
   SubmessageHeader submsgHeader;
-  while (msgInfo.nextPos < msgInfo.size) {
-    if (!deserializeMessage(msgInfo, submsgHeader)) {
+  while (msgInfo.nextPos < msgInfo.size)
+  {
+    if (!deserializeMessage(msgInfo, submsgHeader))
+    {
       return false;
     }
     processSubmessage(msgInfo, submsgHeader);
@@ -71,24 +83,29 @@ bool MessageReceiver::processMessage(const uint8_t *data, DataSize_t size) {
   return true;
 }
 
-bool MessageReceiver::processHeader(MessageProcessingInfo &msgInfo) {
+// headerの解析をしてそう
+bool MessageReceiver::processHeader(MessageProcessingInfo &msgInfo)
+{
   Header header;
-  if (!deserializeMessage(msgInfo, header)) {
+  if (!deserializeMessage(msgInfo, header))
+  {
     return false;
   }
 
-  if (header.guidPrefix.id == mp_part->m_guidPrefix.id) {
+  if (header.guidPrefix.id == mp_part->m_guidPrefix.id)
+  {
     RECV_LOG("[MessageReceiver]: Received own message.\n");
     return false; // Don't process our own packet
   }
 
   if (header.protocolName != RTPS_PROTOCOL_NAME ||
-      header.protocolVersion.major != PROTOCOLVERSION.major) {
+      header.protocolVersion.major != PROTOCOLVERSION.major)
+  {
     return false;
   }
 
   sourceGuidPrefix = header.guidPrefix;
-  sourceVendor = header.vendorId;
+  sourceVendor = header.vendorId; // service通信の識別に使えそう
   sourceVersion = header.protocolVersion;
 
   msgInfo.nextPos += Header::getRawSize();
@@ -96,10 +113,12 @@ bool MessageReceiver::processHeader(MessageProcessingInfo &msgInfo) {
 }
 
 bool MessageReceiver::processSubmessage(MessageProcessingInfo &msgInfo,
-                                        const SubmessageHeader &submsgHeader) {
+                                        const SubmessageHeader &submsgHeader)
+{
   bool success = false;
 
-  switch (submsgHeader.submessageId) {
+  switch (submsgHeader.submessageId)
+  {
   case SubmessageKind::ACKNACK:
     RECV_LOG("Processing AckNack submessage\n");
     success = processAckNackSubmessage(msgInfo);
@@ -130,15 +149,18 @@ bool MessageReceiver::processSubmessage(MessageProcessingInfo &msgInfo,
   return success;
 }
 
+// submessegeのdataを処理している
 bool MessageReceiver::processDataSubmessage(
-    MessageProcessingInfo &msgInfo, const SubmessageHeader &submsgHeader) {
+    MessageProcessingInfo &msgInfo, const SubmessageHeader &submsgHeader)
+{
   SubmessageData dataSubmsg;
-  if (!deserializeMessage(msgInfo, dataSubmsg)) {
+  if (!deserializeMessage(msgInfo, dataSubmsg))
+  {
     return false;
   }
 
   const uint8_t *serializedData =
-      msgInfo.getPointerToCurrentPos() + SubmessageData::getRawSize();
+      msgInfo.getPointerToCurrentPos() + SubmessageData::getRawSize(); // service通信独自の項目で条件分けする方法を考える
 
   const DataSize_t size = submsgHeader.octetsToNextHeader -
                           SubmessageData::getRawSize() +
@@ -147,35 +169,56 @@ bool MessageReceiver::processDataSubmessage(
   RECV_LOG("Received data message size %u", (int)size);
 
   Reader *reader;
-  if (dataSubmsg.readerId == ENTITYID_UNKNOWN) {
+  if (dataSubmsg.readerId == ENTITYID_UNKNOWN)
+  {
 #if RECV_VERBOSE && RTPS_GLOBAL_VERBOSE
     RECV_LOG("Received ENTITYID_UNKNOWN readerID, searching for writer ID = ");
     printGuid(Guid_t{sourceGuidPrefix, dataSubmsg.writerId});
     printf("\n");
 #endif
     reader = mp_part->getReaderByWriterId(
-        Guid_t{sourceGuidPrefix, dataSubmsg.writerId});
+        Guid_t{sourceGuidPrefix, dataSubmsg.writerId}); // writerIDからreaderを取得
     if (reader != nullptr)
       RECV_LOG("Found reader!");
-  } else {
-    reader = mp_part->getReader(dataSubmsg.readerId);
+  }
+  else
+  {
+    reader = mp_part->getReader(dataSubmsg.readerId); // readerの取得
 #if RECV_VERBOSE && RTPS_GLOBAL_VERBOSE
     auto reader_by_writer = mp_part->getReaderByWriterId(
         Guid_t{sourceGuidPrefix, dataSubmsg.writerId});
 
-    if (reader_by_writer == nullptr && reader != nullptr) {
+    if (reader_by_writer == nullptr && reader != nullptr)
+    {
       RECV_LOG("FOUND By READER ID, NOT BY WRITER ID =");
       printGuid(Guid_t{sourceGuidPrefix, dataSubmsg.writerId});
       printf("\n");
     }
 #endif
   }
-  if (reader != nullptr) {
+  if (reader != nullptr)
+  {
+    // serializedDataの先頭2byteを比較することでservice通信の識別を行う　0x800f
+    if (serializedData[0] == 0x0f && serializedData[1] == 0x80)
+    {
+      RECV_LOG("Received service message\n");
+      Guid_t writerGuid{sourceGuidPrefix, dataSubmsg.writerId};
+      // serializedDataのサスデータを28byteずらす
+      serializedData += 32;
+      ReaderCacheChange change{ChangeKind_t::ALIVE, writerGuid,
+                               dataSubmsg.writerSN, serializedData, size}; // inlineqosのサイズ分だけoffsetをずらす28byte
+      reader->newChange(change);
+      return true;
+    }
+
     Guid_t writerGuid{sourceGuidPrefix, dataSubmsg.writerId};
     ReaderCacheChange change{ChangeKind_t::ALIVE, writerGuid,
-                             dataSubmsg.writerSN, serializedData, size};
+                             dataSubmsg.writerSN, serializedData, size}; // readerに通知するデータを作成？
+
     reader->newChange(change);
-  } else {
+  }
+  else
+  {
 #if RECV_VERBOSE && RTPS_GLOBAL_VERBOSE
     RECV_LOG("Couldn't find a reader with id: ");
     printEntityId(dataSubmsg.readerId);
@@ -187,33 +230,43 @@ bool MessageReceiver::processDataSubmessage(
 }
 
 bool MessageReceiver::processHeartbeatSubmessage(
-    MessageProcessingInfo &msgInfo) {
+    MessageProcessingInfo &msgInfo)
+{
   SubmessageHeartbeat submsgHB;
-  if (!deserializeMessage(msgInfo, submsgHB)) {
+  if (!deserializeMessage(msgInfo, submsgHB))
+  {
     return false;
   }
 
   Reader *reader = mp_part->getReader(submsgHB.readerId);
-  if (reader != nullptr) {
+  if (reader != nullptr)
+  {
     reader->onNewHeartbeat(submsgHB, sourceGuidPrefix);
     mp_part->addHeartbeat(sourceGuidPrefix);
     return true;
-  } else {
+  }
+  else
+  {
     return false;
   }
 }
 
-bool MessageReceiver::processAckNackSubmessage(MessageProcessingInfo &msgInfo) {
+bool MessageReceiver::processAckNackSubmessage(MessageProcessingInfo &msgInfo)
+{
   SubmessageAckNack submsgAckNack;
-  if (!deserializeMessage(msgInfo, submsgAckNack)) {
+  if (!deserializeMessage(msgInfo, submsgAckNack))
+  {
     return false;
   }
 
   Writer *writer = mp_part->getWriter(submsgAckNack.writerId);
-  if (writer != nullptr) {
+  if (writer != nullptr)
+  {
     writer->onNewAckNack(submsgAckNack, sourceGuidPrefix);
     return true;
-  } else {
+  }
+  else
+  {
     return false;
   }
 }

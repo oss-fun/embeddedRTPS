@@ -29,25 +29,30 @@ using rtps::TopicData;
 using rtps::TopicDataCompressed;
 using rtps::SMElement::ParameterId;
 
-bool TopicData::matchesTopicOf(const TopicData &other) {
+bool TopicData::matchesTopicOf(const TopicData &other)
+{
   return strcmp(this->topicName, other.topicName) == 0 &&
-         strcmp(this->typeName, other.typeName) == 0;
+         strcmp(this->typeName, other.typeName) == 0; // strcmpは文字列が一致すると0を返す
 }
 
-bool TopicData::readFromUcdrBuffer(ucdrBuffer &buffer) {
+bool TopicData::readFromUcdrBuffer(ucdrBuffer &buffer)
+{
 
-  while (ucdr_buffer_remaining(&buffer) >= 4) {
+  while (ucdr_buffer_remaining(&buffer) >= 4)
+  {
     ParameterId pid;
     uint16_t length;
     FullLengthLocator uLoc;
     ucdr_deserialize_uint16_t(&buffer, reinterpret_cast<uint16_t *>(&pid));
     ucdr_deserialize_uint16_t(&buffer, &length);
 
-    if (ucdr_buffer_remaining(&buffer) < length) {
+    if (ucdr_buffer_remaining(&buffer) < length)
+    {
       return false;
     }
 
-    switch (pid) {
+    switch (pid)
+    {
     case ParameterId::PID_ENDPOINT_GUID:
       ucdr_deserialize_array_uint8_t(&buffer, endpointGuid.prefix.id.data(),
                                      endpointGuid.prefix.id.size());
@@ -78,7 +83,8 @@ bool TopicData::readFromUcdrBuffer(ucdrBuffer &buffer) {
     case ParameterId::PID_UNICAST_LOCATOR:
       uLoc.readFromUcdrBuffer(buffer);
       if (uLoc.kind == LocatorKind_t::LOCATOR_KIND_UDPv4 &&
-          uLoc.isSameSubnet()) {
+          uLoc.isSameSubnet())
+      {
         unicastLocator = uLoc;
       }
       break;
@@ -97,12 +103,14 @@ bool TopicData::readFromUcdrBuffer(ucdrBuffer &buffer) {
   return ucdr_buffer_remaining(&buffer) == 0;
 }
 
-bool TopicData::serializeIntoUcdrBuffer(ucdrBuffer &buffer) const {
+bool TopicData::serializeIntoUcdrBuffer(ucdrBuffer &buffer) const
+{
   // TODO Check if buffer length is sufficient
   const uint16_t guidSize = sizeof(GuidPrefix_t::id) + 4;
 
 #if SUPPRESS_UNICAST
-  if (multicastLocator.kind != LocatorKind_t::LOCATOR_KIND_UDPv4) {
+  if (multicastLocator.kind != LocatorKind_t::LOCATOR_KIND_UDPv4)
+  {
 #endif
     ucdr_serialize_uint16_t(&buffer, ParameterId::PID_UNICAST_LOCATOR);
     ucdr_serialize_uint16_t(&buffer, sizeof(FullLengthLocator));
@@ -113,7 +121,8 @@ bool TopicData::serializeIntoUcdrBuffer(ucdrBuffer &buffer) const {
   }
 #endif
 
-  if (multicastLocator.kind == LocatorKind_t::LOCATOR_KIND_UDPv4) {
+  if (multicastLocator.kind == LocatorKind_t::LOCATOR_KIND_UDPv4)
+  {
     ucdr_serialize_uint16_t(&buffer, ParameterId::PID_MULTICAST_LOCATOR);
     ucdr_serialize_uint16_t(&buffer, sizeof(FullLengthLocator));
     ucdr_serialize_array_uint8_t(
@@ -125,7 +134,8 @@ bool TopicData::serializeIntoUcdrBuffer(ucdrBuffer &buffer) const {
   const auto lenTopicName =
       static_cast<uint32_t>(strlen(topicName) + 1); // + \0
   uint16_t topicAlignment = 0;
-  if (lenTopicName % 4 != 0) {
+  if (lenTopicName % 4 != 0)
+  {
     topicAlignment = static_cast<uint8_t>(4 - (lenTopicName % 4));
   }
   const auto totalLengthTopicNameField = static_cast<uint16_t>(
@@ -139,7 +149,8 @@ bool TopicData::serializeIntoUcdrBuffer(ucdrBuffer &buffer) const {
   // It's a 32 bit instead of 16 because it seems like the field is padded.
   const auto lenTypeName = static_cast<uint32_t>(strlen(typeName) + 1); // + \0
   uint16_t typeAlignment = 0;
-  if (lenTypeName % 4 != 0) {
+  if (lenTypeName % 4 != 0)
+  {
     typeAlignment = static_cast<uint8_t>(4 - (lenTypeName % 4));
   }
   const auto totalLengthTypeNameField =
@@ -187,7 +198,8 @@ bool TopicData::serializeIntoUcdrBuffer(ucdrBuffer &buffer) const {
   return true;
 }
 
-bool TopicDataCompressed::matchesTopicOf(const TopicData &other) const {
+bool TopicDataCompressed::matchesTopicOf(const TopicData &other) const
+{
   return (hashCharArray(other.topicName, sizeof(other.topicName)) ==
               topicHash &&
           hashCharArray(other.typeName, sizeof(other.typeName)) == typeHash);
