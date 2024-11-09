@@ -32,6 +32,10 @@ Author: i11 - Embedded Software, RWTH Aachen University
 
 #include <array>
 #include <cstdint>
+// service communication
+// #include <mutex>
+// #include <queue>
+// #include "rtps/rtps.h"
 
 namespace rtps
 {
@@ -210,6 +214,23 @@ namespace rtps
 
       if (containsInlineQos)
       {
+        // CacheChangeInfo info;
+        // {
+        //   // std::lock_guard<std::mutex> lock(bufferMutex);
+        //   if (!cacheChangeQueue.empty())
+        //   {
+        //     // 最新の情報を取得
+        //     info = cacheChangeQueue.front();
+        //     cacheChangeQueue.pop();
+        //   }
+        //   else
+        //   {
+        //     // エラー処理：バッファが空の場合の対処
+        //     // 例：デフォルト値を使用する、処理をスキップするなど
+        //     // return;
+        //     printf("service: cacheChangeQueue is empty\n");
+        //   }
+        // }
 
         // for service communication add inlineQos and sampleIdentity
         if (!buffer.reserve(32))

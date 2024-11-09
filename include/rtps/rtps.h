@@ -26,14 +26,28 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #define RTPS_RTPS_H
 
 #include "rtps/entities/Domain.h"
+#include <mutex>
+#include <queue>
 
-namespace rtps {
+namespace rtps
+{
 
 #if defined(unix) || defined(__unix__) || defined(WIN32) || defined(_WIN32) || \
     defined(__WIN32) && !defined(__CYGWIN__)
-void init();
+    void init();
 #endif
 
 } // namespace rtps
+
+struct CacheChangeInfo
+{
+    rtps::Guid_t writerGuid;
+    rtps::SequenceNumber_t sequenceNumber;
+    // 他に必要な情報があれば追加
+};
+
+// // スレッドセーフなキューまたはマップを使用
+// std::mutex bufferMutex;
+// std::queue<CacheChangeInfo> cacheChangeQueue;
 
 #endif // RTPS_RTPS_H
