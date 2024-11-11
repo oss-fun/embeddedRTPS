@@ -26,8 +26,8 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #define RTPS_RTPS_H
 
 #include "rtps/entities/Domain.h"
-#include <mutex>
-#include <queue>
+// #include <mutex>
+// #include <queue>
 
 namespace rtps
 {

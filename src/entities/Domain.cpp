@@ -51,7 +51,7 @@ Domain::Domain()
 
 Domain::~Domain() { stop(); }
 
-// SPSPagentをスタートさせる
+// SPDPagentをスタートさせる
 bool Domain::completeInit()
 {
   m_initComplete = m_threadPool.startThreads();

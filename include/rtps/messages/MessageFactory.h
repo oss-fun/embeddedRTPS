@@ -184,7 +184,8 @@ namespace rtps
                                       numBytesUntilEndOfLength;
       // inlineQosがある場合はここで追加する
 
-      containsInlineQos = true;
+      // containsInlineQos = true;
+      containsInlineQos = false;
       if (containsInlineQos)
       {
         msg.header.flags |= FLAG_INLINE_QOS;

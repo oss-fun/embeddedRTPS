@@ -33,78 +33,97 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #include "rtps/storages/PBufWrapper.h"
 #include <cstring>
 
-namespace rtps {
+namespace rtps
+{
 
-struct SubmessageHeartbeat;
+  struct SubmessageHeartbeat;
 
-class ReaderCacheChange {
-private:
-  const uint8_t *data;
+  class ReaderCacheChange
+  {
+  private:
+    const uint8_t *data;
 
-public:
-  const ChangeKind_t kind;
-  const DataSize_t size;
-  const Guid_t writerGuid;
-  const SequenceNumber_t sn;
+  public:
+    const ChangeKind_t kind;
+    const DataSize_t size;
+    const Guid_t writerGuid;
+    const SequenceNumber_t sn;
+    // for service communication
+    // const std::array<uint8_t, 12> guidPrefix;
+    // const uint32_t entity_id;
+    // const uint32_t sequenceNumber_high;
+    // const uint32_t sequenceNumber_low;
+    const uint32_t response;
 
-  ReaderCacheChange(ChangeKind_t kind, Guid_t &writerGuid, SequenceNumber_t sn,
-                    const uint8_t *data, DataSize_t size)
-      : data(data), kind(kind), size(size), writerGuid(writerGuid), sn(sn){};
+    // ReaderCacheChange(ChangeKind_t kind, Guid_t &writerGuid, SequenceNumber_t sn,
+    //                   const uint8_t *data, DataSize_t size)
+    //     : data(data), kind(kind), size(size), writerGuid(writerGuid), sn(sn) {};
+    ReaderCacheChange(ChangeKind_t kind, Guid_t &writerGuid, SequenceNumber_t sn,
+                      const uint8_t *data, DataSize_t size, uint32_t response)
+        : data(data), kind(kind), size(size), writerGuid(writerGuid), sn(sn), response(response) {};
 
-  ~ReaderCacheChange() =
-      default; // No need to free data. It's not owned by this object
-  // Not allowed because this class doesn't own the ptr and the user isn't
-  // allowed to use it outside the Scope of the callback
-  ReaderCacheChange(const ReaderCacheChange &other) = delete;
-  ReaderCacheChange(ReaderCacheChange &&other) = delete;
-  ReaderCacheChange &operator=(const ReaderCacheChange &other) = delete;
-  ReaderCacheChange &operator=(ReaderCacheChange &&other) = delete;
+    ~ReaderCacheChange() =
+        default; // No need to free data. It's not owned by this object
+    // Not allowed because this class doesn't own the ptr and the user isn't
+    // allowed to use it outside the Scope of the callback
+    ReaderCacheChange(const ReaderCacheChange &other) = delete;
+    ReaderCacheChange(ReaderCacheChange &&other) = delete;
+    ReaderCacheChange &operator=(const ReaderCacheChange &other) = delete;
+    ReaderCacheChange &operator=(ReaderCacheChange &&other) = delete;
 
-  bool copyInto(uint8_t *buffer, DataSize_t destSize) const {
-    if (destSize < size) {
-      return false;
-    } else {
-      memcpy(buffer, data, size);
-      return true;
-    }
-  }
-
-  const uint8_t *getData() const { return data; }
-
-  const DataSize_t getDataSize() const { return size; }
-};
-
-typedef void (*ddsReaderCallback_fp)(void *callee,
-                                     const ReaderCacheChange &cacheChange);
-
-class Reader {
-public:
-  TopicData m_attributes;
-  virtual void newChange(const ReaderCacheChange &cacheChange) = 0;
-  virtual void registerCallback(ddsReaderCallback_fp cb, void *callee) = 0;
-  virtual bool onNewHeartbeat(const SubmessageHeartbeat &msg,
-                              const GuidPrefix_t &remotePrefix) = 0;
-  virtual bool addNewMatchedWriter(const WriterProxy &newProxy) = 0;
-  virtual void removeWriter(const Guid_t &guid) = 0;
-  virtual void removeWriterOfParticipant(const GuidPrefix_t &guidPrefix) = 0;
-  bool isInitialized() { return m_is_initialized_; }
-
-  bool knowWriterId(const Guid_t &guid) {
-    for (const auto &proxy : m_proxies) {
-      if (proxy.remoteWriterGuid.operator==(guid)) {
+    bool copyInto(uint8_t *buffer, DataSize_t destSize) const
+    {
+      if (destSize < size)
+      {
+        return false;
+      }
+      else
+      {
+        memcpy(buffer, data, size);
         return true;
       }
     }
-    return false;
-  }
 
-  uint32_t getNumMatchedWriters() { return m_proxies.getSize(); }
+    const uint8_t *getData() const { return data; }
 
-protected:
-  bool m_is_initialized_ = false;
-  virtual ~Reader() = default;
-  MemoryPool<WriterProxy, Config::NUM_WRITER_PROXIES_PER_READER> m_proxies;
-};
+    const DataSize_t getDataSize() const { return size; }
+  };
+
+  typedef void (*ddsReaderCallback_fp)(void *callee,
+                                       const ReaderCacheChange &cacheChange);
+
+  class Reader
+  {
+  public:
+    TopicData m_attributes;
+    virtual void newChange(const ReaderCacheChange &cacheChange) = 0;
+    virtual void registerCallback(ddsReaderCallback_fp cb, void *callee) = 0;
+    virtual bool onNewHeartbeat(const SubmessageHeartbeat &msg,
+                                const GuidPrefix_t &remotePrefix) = 0;
+    virtual bool addNewMatchedWriter(const WriterProxy &newProxy) = 0;
+    virtual void removeWriter(const Guid_t &guid) = 0;
+    virtual void removeWriterOfParticipant(const GuidPrefix_t &guidPrefix) = 0;
+    bool isInitialized() { return m_is_initialized_; }
+
+    bool knowWriterId(const Guid_t &guid)
+    {
+      for (const auto &proxy : m_proxies)
+      {
+        if (proxy.remoteWriterGuid.operator==(guid))
+        {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    uint32_t getNumMatchedWriters() { return m_proxies.getSize(); }
+
+  protected:
+    bool m_is_initialized_ = false;
+    virtual ~Reader() = default;
+    MemoryPool<WriterProxy, Config::NUM_WRITER_PROXIES_PER_READER> m_proxies;
+  };
 } // namespace rtps
 
 #endif // RTPS_READER_H
