@@ -48,7 +48,10 @@ namespace rtps
     const DataSize_t size;
     const Guid_t writerGuid;
     const SequenceNumber_t sn;
+    const Sample_Indetify identify;
     // for service communication
+    // const SequenceNumber_t sn_req;
+
     // const std::array<uint8_t, 12> guidPrefix;
     // const uint32_t entity_id;
     // const uint32_t sequenceNumber_high;
@@ -59,8 +62,8 @@ namespace rtps
     //                   const uint8_t *data, DataSize_t size)
     //     : data(data), kind(kind), size(size), writerGuid(writerGuid), sn(sn) {};
     ReaderCacheChange(ChangeKind_t kind, Guid_t &writerGuid, SequenceNumber_t sn,
-                      const uint8_t *data, DataSize_t size, uint32_t response)
-        : data(data), kind(kind), size(size), writerGuid(writerGuid), sn(sn), response(response) {};
+                      const uint8_t *data, DataSize_t size, uint32_t response, Sample_Indetify identify)
+        : data(data), kind(kind), size(size), writerGuid(writerGuid), sn(sn), response(response), identify(identify) {};
 
     ~ReaderCacheChange() =
         default; // No need to free data. It's not owned by this object

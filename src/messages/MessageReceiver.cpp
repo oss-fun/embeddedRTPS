@@ -202,27 +202,37 @@ bool MessageReceiver::processDataSubmessage(
     if (serializedData[0] == 0x0f && serializedData[1] == 0x80)
     {
       RECV_LOG("Received service message\n");
+      // デシリアライズ
+      Sample_Indetify identify; // service通信の識別子
+      if (!deserializeMessage(msgInfo, identify))
+      {
+        RECV_LOG("Falut deeserialize service message identify\n");
+        return false;
+      }
+
       Guid_t writerGuid{sourceGuidPrefix, dataSubmsg.writerId};
       // serializedDataのサスデータを28byteずらす
       // doCopyAndMoveOn(reinterpret_cast<uint8_t *>(&msg.writerSN.high), currentPos,
       // sizeof(msg.writerSN.high));
 
-      std::array<uint8_t, 12> writerGuidPrefix = {0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78};
+      // std::array<uint8_t, 12> writerGuidPrefix = {0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78};
       // memcpy(reinterpret_cast<uint8_t *>(&writerGuidPrefix), &serializedData[2], 12);
 
       // readerにresponseメッセージか通知する変数を追加
       uint32_t response = 1;
       serializedData += 32;
       ReaderCacheChange change{ChangeKind_t::ALIVE, writerGuid,
-                               dataSubmsg.writerSN, serializedData, size, response}; // inlineqosのサイズ分だけoffsetをずらす28byte→32byteだったかも
-      reader->newChange(change);                                                     // service通信を受信した時に、writerGuidを別の場所に持っていくとかしたい。でもどこに保存したらいいのかわからない
+                               dataSubmsg.writerSN, serializedData, size, response, identify}; // inlineqosのサイズ分だけoffsetをずらす28byte→32byteだったかも
+      reader->newChange(change);                                                               // service通信を受信した時に、writerGuidを別の場所に持っていくとかしたい。でもどこに保存したらいいのかわからない
       return true;
     }
 
     uint32_t response = 0;
     Guid_t writerGuid{sourceGuidPrefix, dataSubmsg.writerId};
+    Sample_Indetify identify; // service通信の識別子
+
     ReaderCacheChange change{ChangeKind_t::ALIVE, writerGuid,
-                             dataSubmsg.writerSN, serializedData, size, response};
+                             dataSubmsg.writerSN, serializedData, size, response, identify};
 
     // Guid_t writerGuid{sourceGuidPrefix, dataSubmsg.writerId};
     // ReaderCacheChange change{ChangeKind_t::ALIVE, writerGuid,

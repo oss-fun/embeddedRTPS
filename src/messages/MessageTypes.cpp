@@ -28,14 +28,17 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #include <stdio.h>
 using namespace rtps;
 
-void doCopyAndMoveOn(uint8_t *dst, const uint8_t *&src, size_t size) {
+void doCopyAndMoveOn(uint8_t *dst, const uint8_t *&src, size_t size)
+{
   memcpy(dst, src, size);
   src += size;
 }
 
 bool rtps::deserializeMessage(const MessageProcessingInfo &info,
-                              Header &header) {
-  if (info.getRemainingSize() < Header::getRawSize()) {
+                              Header &header)
+{
+  if (info.getRemainingSize() < Header::getRawSize())
+  {
     return false;
   }
 
@@ -52,8 +55,10 @@ bool rtps::deserializeMessage(const MessageProcessingInfo &info,
 }
 
 bool rtps::deserializeMessage(const MessageProcessingInfo &info,
-                              SubmessageHeader &header) {
-  if (info.getRemainingSize() < SubmessageHeader::getRawSize()) {
+                              SubmessageHeader &header)
+{
+  if (info.getRemainingSize() < SubmessageHeader::getRawSize())
+  {
     return false;
   }
 
@@ -66,17 +71,21 @@ bool rtps::deserializeMessage(const MessageProcessingInfo &info,
 }
 
 bool rtps::deserializeMessage(const MessageProcessingInfo &info,
-                              SubmessageData &msg) {
-  if (info.getRemainingSize() < SubmessageHeader::getRawSize()) {
+                              SubmessageData &msg)
+{
+  if (info.getRemainingSize() < SubmessageHeader::getRawSize())
+  {
     return false;
   }
-  if (!deserializeMessage(info, msg.header)) {
+  if (!deserializeMessage(info, msg.header))
+  {
     return false;
   }
 
   // Check for length including data
   if (info.getRemainingSize() <
-      SubmessageHeader::getRawSize() + msg.header.octetsToNextHeader) {
+      SubmessageHeader::getRawSize() + msg.header.octetsToNextHeader)
+  {
     return false;
   }
 
@@ -101,11 +110,45 @@ bool rtps::deserializeMessage(const MessageProcessingInfo &info,
 }
 
 bool rtps::deserializeMessage(const MessageProcessingInfo &info,
-                              SubmessageHeartbeat &msg) {
-  if (info.getRemainingSize() < SubmessageHeartbeat::getRawSize()) {
+                              Sample_Indetify &msg)
+{
+  // inlineQosの先頭ポインターを取得する
+  const uint8_t *currentPos =
+      info.getPointerToCurrentPos() + SubmessageHeader::getRawSize() + SubmessageData::getRawSize();
+
+  // sample_identifyであることを確認
+  // if (currentPos[0] == 0x0f && currentPos[1] == 0x80)
+  // {
+  // }
+
+  // 識別子の0x800fとlength分ずらす
+  // currentPos += 4; //service_msg_sn: 0000 0300 可変
+  // currentPos += 3;//service_msg_sn: 0003 0000 可変
+  // currentPos += 2; // service_msg_sn: 0300 0000 可変
+  // currentPos += 1; // service_msg_sn: 00000000 不変
+  currentPos += 0; // service_msg_sn: 0000 0003 可変
+  // currentPos -= 1;
+
+  // sampleindentifyのデータを取得する
+  doCopyAndMoveOn(msg.guidPrefix.id.data(), currentPos, msg.guidPrefix.id.size());
+  doCopyAndMoveOn(msg.writerId.entityKey.data(), currentPos, msg.writerId.entityKey.size());
+  msg.writerId.entityKind = static_cast<EntityKind_t>(*currentPos++);
+  doCopyAndMoveOn(reinterpret_cast<uint8_t *>(&msg.sn.high), currentPos,
+                  sizeof(msg.sn.high));
+  doCopyAndMoveOn(reinterpret_cast<uint8_t *>(&msg.sn.low), currentPos,
+                  sizeof(msg.sn.low));
+  return true;
+}
+
+bool rtps::deserializeMessage(const MessageProcessingInfo &info,
+                              SubmessageHeartbeat &msg)
+{
+  if (info.getRemainingSize() < SubmessageHeartbeat::getRawSize())
+  {
     return false;
   }
-  if (!deserializeMessage(info, msg.header)) {
+  if (!deserializeMessage(info, msg.header))
+  {
     return false;
   }
 
@@ -132,14 +175,17 @@ bool rtps::deserializeMessage(const MessageProcessingInfo &info,
 }
 
 bool rtps::deserializeMessage(const MessageProcessingInfo &info,
-                              SubmessageAckNack &msg) {
+                              SubmessageAckNack &msg)
+{
   const DataSize_t remainingSizeAtBeginning = info.getRemainingSize();
   if (remainingSizeAtBeginning <
       SubmessageAckNack::
-          getRawSizeWithoutSNSet()) { // Size of SequenceNumberSet unknown
+          getRawSizeWithoutSNSet())
+  { // Size of SequenceNumberSet unknown
     return false;
   }
-  if (!deserializeMessage(info, msg.header)) {
+  if (!deserializeMessage(info, msg.header))
+  {
     return false;
   }
 
@@ -161,11 +207,13 @@ bool rtps::deserializeMessage(const MessageProcessingInfo &info,
 
   // Now we can check for full size
   if (remainingSizeAtBeginning <
-      SubmessageAckNack::getRawSize(msg.readerSNState)) {
+      SubmessageAckNack::getRawSize(msg.readerSNState))
+  {
     return false;
   }
 
-  if (msg.readerSNState.numBits != 0) {
+  if (msg.readerSNState.numBits != 0)
+  {
     doCopyAndMoveOn(
         reinterpret_cast<uint8_t *>(msg.readerSNState.bitMap.data()),
         currentPos, 4 * ((msg.readerSNState.numBits / 32) + 1));
