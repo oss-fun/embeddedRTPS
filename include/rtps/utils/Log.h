@@ -43,7 +43,7 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #define TSCB_VERBOSE 1
 // #define SFW_VERBOSE 1
 // #define SLW_VERBOSE 1
-#define SFR_VERBOSE 1
-#define SLR_VERBOSE 1
+// #define SFR_VERBOSE 1
+// #define SLR_VERBOSE 1
 
 #endif // RTPS_LOG_H

@@ -32,36 +32,40 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #include "rtps/storages/MemoryPool.h"
 #include "rtps/storages/PBufWrapper.h"
 
-namespace rtps {
+namespace rtps
+{
 
-class Writer {
-public:
-  TopicData m_attributes;
-  virtual bool addNewMatchedReader(const ReaderProxy &newProxy) = 0;
-  virtual void removeReader(const Guid_t &guid) = 0;
-  virtual void removeReaderOfParticipant(const GuidPrefix_t &guidPrefix) = 0;
+  class Writer
+  {
+  public:
+    TopicData m_attributes;
+    virtual bool addNewMatchedReader(const ReaderProxy &newProxy) = 0;
+    virtual void removeReader(const Guid_t &guid) = 0;
+    virtual void removeReaderOfParticipant(const GuidPrefix_t &guidPrefix) = 0;
 
-  //! Executes required steps like sending packets. Intended to be called by
-  //! worker threads
-  virtual void progress() = 0;
-  virtual const CacheChange *newChange(ChangeKind_t kind, const uint8_t *data,
-                                       DataSize_t size) = 0;
-  virtual const CacheChange *newChangeCallback(ChangeKind_t kind,
-					       CacheChange::SerializerCallback func, FragDataSize_t) = 0;
-  virtual void setAllChangesToUnsent() = 0;
-  virtual void onNewAckNack(const SubmessageAckNack &msg,
-                            const GuidPrefix_t &sourceGuidPrefix) = 0;
+    //! Executes required steps like sending packets. Intended to be called by
+    //! worker threads
+    virtual void progress() = 0;
+    virtual const CacheChange *newChange(ChangeKind_t kind, const uint8_t *data,
+                                         DataSize_t size) = 0;
+    virtual const CacheChange *newChangeCallback(ChangeKind_t kind,
+                                                 CacheChange::SerializerCallback func, FragDataSize_t) = 0;
+    virtual const CacheChange *newChangeIdentify(ChangeKind_t kind, const uint8_t *data,
+                                                 DataSize_t size, Sample_Indetify identify) = 0;
+    virtual void setAllChangesToUnsent() = 0;
+    virtual void onNewAckNack(const SubmessageAckNack &msg,
+                              const GuidPrefix_t &sourceGuidPrefix) = 0;
 
-  bool isInitialized() { return m_is_initialized_; }
+    bool isInitialized() { return m_is_initialized_; }
 
-  uint32_t getNumMatchedReader() { return m_proxies.getSize(); }
+    uint32_t getNumMatchedReader() { return m_proxies.getSize(); }
 
-protected:
-  friend class SizeInspector;
-  bool m_is_initialized_ = false;
-  virtual ~Writer() = default;
-  MemoryPool<ReaderProxy, Config::NUM_READER_PROXIES_PER_WRITER> m_proxies;
-};
+  protected:
+    friend class SizeInspector;
+    bool m_is_initialized_ = false;
+    virtual ~Writer() = default;
+    MemoryPool<ReaderProxy, Config::NUM_READER_PROXIES_PER_WRITER> m_proxies;
+  };
 } // namespace rtps
 
 #endif // RTPS_WRITER_H

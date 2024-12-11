@@ -29,20 +29,25 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #include "rtps/common/types.h"
 #include "rtps/storages/PBufWrapper.h"
 
-namespace rtps {
-struct CacheChange {
-  ChangeKind_t kind = ChangeKind_t::INVALID;
-  SequenceNumber_t sequenceNumber = SEQUENCENUMBER_UNKNOWN;
-  PBufWrapper data{};
-  typedef std::pair<uint8_t *, DataSize_t> SerializedBuf;
-  typedef std::function<SerializedBuf()> SerializerCallback;
-  SerializerCallback serializerCallback = nullptr;
-  FragDataSize_t sizeToBeSerialized;
+namespace rtps
+{
+  struct CacheChange
+  {
+    ChangeKind_t kind = ChangeKind_t::INVALID;
+    SequenceNumber_t sequenceNumber = SEQUENCENUMBER_UNKNOWN;
+    PBufWrapper data{};
+    typedef std::pair<uint8_t *, DataSize_t> SerializedBuf;
+    typedef std::function<SerializedBuf()> SerializerCallback;
+    SerializerCallback serializerCallback = nullptr;
+    FragDataSize_t sizeToBeSerialized;
 
-  CacheChange() = default;
-  CacheChange(ChangeKind_t kind, SequenceNumber_t sequenceNumber)
-      : kind(kind), sequenceNumber(sequenceNumber){};
-};
+    bool serviceRespFlag = false;
+    Sample_Indetify identify; // for service communication
+
+    CacheChange() = default;
+    CacheChange(ChangeKind_t kind, SequenceNumber_t sequenceNumber)
+        : kind(kind), sequenceNumber(sequenceNumber) {};
+  };
 } // namespace rtps
 
 #endif // PROJECT_CACHECHANGE_H

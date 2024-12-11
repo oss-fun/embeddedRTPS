@@ -197,6 +197,40 @@ void StatelessWriterT<NetworkDriver>::removeReaderOfParticipant(
   resetSendOptions();
 }
 
+template <class NetworkDriver>
+const rtps::CacheChange *StatelessWriterT<NetworkDriver>::newChangeIdentify(
+    ChangeKind_t kind, const uint8_t *data, DataSize_t size, Sample_Indetify identify)
+{
+  if (isIrrelevant(kind))
+  {
+    return nullptr;
+  }
+
+  Lock lock{m_mutex};
+
+  if (m_history.isFull())
+  {
+    // Right now we drop elements anyway because we cannot detect non-responding
+    // readers yet. return nullptr;
+    SequenceNumber_t newMin = ++SequenceNumber_t(m_history.getSeqNumMin());
+    if (m_nextSequenceNumberToSend < newMin)
+    {
+      m_nextSequenceNumberToSend =
+          newMin; // Make sure we have the correct sn to send
+    }
+  }
+
+  auto *result = m_history.addChange(data, size, identify);
+  if (mp_threadPool != nullptr)
+  {
+    mp_threadPool->addWorkload(this);
+  }
+
+  SLW_LOG("Adding new data.\n");
+
+  return result;
+}
+
 template <typename NetworkDriver>
 const CacheChange *StatelessWriterT<NetworkDriver>::newChangeCallback(
     rtps::ChangeKind_t kind, CacheChange::SerializerCallback func,
@@ -394,10 +428,11 @@ void StatelessWriterT<NetworkDriver>::progress()
           MessageFactory::addHeader(info.buffer, m_attributes.endpointGuid.prefix);
           MessageFactory::addSubMessageTimeStamp(info.buffer);
           // どうやってinlineqosを追加して、サブメッセージにsample_identityを追加するか
+          SLW_LOG("[debug]  Sending change with service identify SN (%ld,%ld)\n", next->identify.sn.high, next->identify.sn.low);
           MessageFactory::addSubMessageData(info.buffer, next->data, false,
                                             next->sequenceNumber,
                                             m_attributes.endpointGuid.entityId,
-                                            reid); // TODO
+                                            reid, next->identify); // TODO
           /* for service communication add inlineQos and sampleIdentity */
           // MessageFactory::addSubMessageData(info.buffer, next->data, true,
           //                                   next->sequenceNumber,

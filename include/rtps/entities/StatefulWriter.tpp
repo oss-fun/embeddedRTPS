@@ -224,6 +224,40 @@ void StatefulWriterT<NetworkDriver>::removeReaderOfParticipant(
 }
 
 template <class NetworkDriver>
+const rtps::CacheChange *StatefulWriterT<NetworkDriver>::newChangeIdentify(
+    ChangeKind_t kind, const uint8_t *data, DataSize_t size, Sample_Indetify identify)
+{
+  if (isIrrelevant(kind))
+  {
+    return nullptr;
+  }
+
+  Lock lock{m_mutex};
+
+  if (m_history.isFull())
+  {
+    // Right now we drop elements anyway because we cannot detect non-responding
+    // readers yet. return nullptr;
+    SequenceNumber_t newMin = ++SequenceNumber_t(m_history.getSeqNumMin());
+    if (m_nextSequenceNumberToSend < newMin)
+    {
+      m_nextSequenceNumberToSend =
+          newMin; // Make sure we have the correct sn to send
+    }
+  }
+
+  auto *result = m_history.addChange(data, size, identify);
+  if (mp_threadPool != nullptr)
+  {
+    mp_threadPool->addWorkload(this);
+  }
+
+  SFW_LOG("Adding new data.\n");
+
+  return result;
+}
+
+template <class NetworkDriver>
 const rtps::CacheChange *StatefulWriterT<NetworkDriver>::newChangeCallback(
     ChangeKind_t kind, CacheChange::SerializerCallback func, FragDataSize_t size)
 {
@@ -426,9 +460,25 @@ bool StatefulWriterT<NetworkDriver>::sendData(
 
       return false;
     }
-    MessageFactory::addSubMessageData(
-        info.buffer, next->data, false, next->sequenceNumber,
-        m_attributes.endpointGuid.entityId, reader.remoteReaderGuid.entityId);
+    SFW_LOG("[debug]  Sending change with service identify SN (%ld,%ld)\n", next->identify.sn.high, next->identify.sn.low);
+    // SFW_LOG("[debug]  Sending change with service identify SN (%ld)\n", next->identify.sn.low);
+    // next->identify.sn.highに値が入っていれば、service通信のメッセージ
+    if (next->serviceRespFlag)
+    {
+      SFW_LOG("[debug]  Sending service identify messege \n");
+      // MessageFactory::addSubMessageData(
+      //     info.buffer, next->data, true, next->sequenceNumber,
+      //     m_attributes.endpointGuid.entityId, reader.remoteReaderGuid.entityId, next->identify);
+      MessageFactory::addSubMessageData(
+          info.buffer, next->data, true, next->sequenceNumber,
+          m_attributes.endpointGuid.entityId, reader.remoteReaderGuid.entityId, next->identify);
+    }
+    else
+    {
+      MessageFactory::addSubMessageData(
+          info.buffer, next->data, false, next->sequenceNumber,
+          m_attributes.endpointGuid.entityId, reader.remoteReaderGuid.entityId, next->identify);
+    }
   }
 
   m_transport->sendPacket(info);
@@ -484,11 +534,21 @@ bool StatefulWriterT<NetworkDriver>::sendDataWRMulticast(
         reid = reader.remoteReaderGuid.entityId;
       }
 
-      MessageFactory::addSubMessageData(
-          info.buffer, next->data, false, next->sequenceNumber,
-          m_attributes.endpointGuid.entityId, reid);
+      if (next->serviceRespFlag)
+      {
+        // SFW_LOG("[debug]  Sending service identify messege \n");
+        SFW_LOG("[debug]  multicast Sending change with service identify SN (%lx,%lx)\n", next->identify.sn.high, next->identify.sn.low);
+        MessageFactory::addSubMessageData(
+            info.buffer, next->data, true, next->sequenceNumber,
+            m_attributes.endpointGuid.entityId, reid, next->identify);
+      }
+      else
+      {
+        MessageFactory::addSubMessageData(
+            info.buffer, next->data, false, next->sequenceNumber,
+            m_attributes.endpointGuid.entityId, reid, next->identify);
+      }
     }
-
     m_transport->sendPacket(info);
   }
   return true;

@@ -169,7 +169,7 @@ namespace rtps
     template <class Buffer>
     void addSubMessageData(Buffer &buffer, const Buffer &filledPayload,
                            bool containsInlineQos, const SequenceNumber_t &SN,
-                           const EntityId_t &writerID, const EntityId_t &readerID)
+                           const EntityId_t &writerID, const EntityId_t &readerID, const Sample_Indetify &identify)
     {
       SubmessageData msg;
       msg.header.submessageId = SubmessageKind::DATA;
@@ -185,7 +185,7 @@ namespace rtps
       // inlineQosがある場合はここで追加する
 
       // containsInlineQos = true;
-      containsInlineQos = false;
+      // containsInlineQos = false;
       if (containsInlineQos)
       {
         msg.header.flags |= FLAG_INLINE_QOS;
@@ -241,10 +241,16 @@ namespace rtps
         uint16_t PID_CUSTOM_RELATED_SAMPLE_IDENTITY = 0x800f;
         uint16_t PID_LENGTH = 24;
         // 12byteのguidprefixを追加
-        std::array<uint8_t, 12> guidPrefix = {0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78};
-        uint32_t entity_id = 0x22222222;
-        uint32_t sequenceNumber_high = 0x00000000;
-        uint32_t sequenceNumber_low = 0x00000001;
+        // std::array<uint8_t, 12> guidPrefix = {0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78, 0x12, 0x34, 0x56, 0x78};
+        // uint32_t entity_id = 0x22222222;
+        // uint32_t sequenceNumber_high = 0xffffffff;
+        // uint32_t sequenceNumber_low = 0x00000000;
+        std::array<uint8_t, 12> guidPrefix = identify.guidPrefix.id;
+        std::array<uint8_t, 3> entityKey = identify.writerId.entityKey;
+        EntityKind_t entityKind = identify.writerId.entityKind;
+        uint32_t sequenceNumber_high = identify.sn.high;
+        uint32_t sequenceNumber_low = identify.sn.low;
+
         uint16_t PID_SENTINEL = 0x0001;
 
         buffer.append(reinterpret_cast<uint8_t *>(&PID_CUSTOM_RELATED_SAMPLE_IDENTITY),
@@ -257,8 +263,9 @@ namespace rtps
 
         /* entity_id  reader reqeuestを送るときに使うwriterのentity_idと対応したもの  reader.remoteReaderGuid.entityId;とかが使えるといいかも*/
         // buffer.append(reinterpret_cast<uint8_t *>(&entity_id), sizeof(entity_id));
-        buffer.append(msg.readerId.entityKey.data(), msg.readerId.entityKey.size());
-        buffer.append(reinterpret_cast<uint8_t *>(&msg.readerId.entityKind),
+        // buffer.append(msg.readerId.entityKey.data(), msg.readerId.entityKey.size());
+        buffer.append(entityKey.data(), entityKey.size());
+        buffer.append(reinterpret_cast<uint8_t *>(&entityKind),
                       sizeof(EntityKind_t));
         /* sequecenumber */
         buffer.append(reinterpret_cast<uint8_t *>(&sequenceNumber_high),
