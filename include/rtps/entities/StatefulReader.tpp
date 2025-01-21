@@ -30,11 +30,12 @@ Author: i11 - Embedded Software, RWTH Aachen University
 
 #if SFR_VERBOSE && RTPS_GLOBAL_VERBOSE
 #include "rtps/utils/printutils.h"
-#define SFR_LOG(...)                                                           \
-  if (true) {                                                                  \
-    printf("[StatefulReader %s] ", &m_attributes.topicName[0]);                \
-    printf(__VA_ARGS__);                                                       \
-    printf("\n");                                                              \
+#define SFR_LOG(...)                                            \
+  if (true)                                                     \
+  {                                                             \
+    printf("[StatefulReader %s] ", &m_attributes.topicName[0]); \
+    printf(__VA_ARGS__);                                        \
+    printf("\n");                                               \
   }
 #else
 #define SFR_LOG(...) //
@@ -43,17 +44,21 @@ Author: i11 - Embedded Software, RWTH Aachen University
 using rtps::StatefulReaderT;
 
 template <class NetworkDriver>
-StatefulReaderT<NetworkDriver>::~StatefulReaderT() {
+StatefulReaderT<NetworkDriver>::~StatefulReaderT()
+{
   //  if(sys_mutex_valid(&m_mutex)){ // Getting invalid pointer error, there
   //  seems sth strange
   //    sys_mutex_free(&m_mutex);
   //  }
 }
 
+// NetworkDriverの中にパケット受信しのコールバックが指定されてそう
 template <class NetworkDriver>
 void StatefulReaderT<NetworkDriver>::init(const TopicData &attributes,
-                                          NetworkDriver &driver) {
-  if (sys_mutex_new(&m_mutex) != ERR_OK) {
+                                          NetworkDriver &driver)
+{
+  if (sys_mutex_new(&m_mutex) != ERR_OK)
+  {
 
     SFR_LOG("StatefulReader: Failed to create mutex.\n");
 
@@ -67,14 +72,19 @@ void StatefulReaderT<NetworkDriver>::init(const TopicData &attributes,
 
 template <class NetworkDriver>
 void StatefulReaderT<NetworkDriver>::newChange(
-    const ReaderCacheChange &cacheChange) {
-  if (m_callback == nullptr) {
+    const ReaderCacheChange &cacheChange)
+{
+  if (m_callback == nullptr)
+  {
     return;
   }
   Lock lock{m_mutex};
-  for (auto &proxy : m_proxies) {
-    if (proxy.remoteWriterGuid == cacheChange.writerGuid) {
-      if (proxy.expectedSN == cacheChange.sn) {
+  for (auto &proxy : m_proxies)
+  {
+    if (proxy.remoteWriterGuid == cacheChange.writerGuid)
+    {
+      if (proxy.expectedSN == cacheChange.sn)
+      {
         m_callback(m_callee, cacheChange);
         ++proxy.expectedSN;
         return;
@@ -85,11 +95,15 @@ void StatefulReaderT<NetworkDriver>::newChange(
 
 template <class NetworkDriver>
 void StatefulReaderT<NetworkDriver>::registerCallback(ddsReaderCallback_fp cb,
-                                                      void *callee) {
-  if (cb != nullptr) {
+                                                      void *callee)
+{
+  if (cb != nullptr)
+  {
     m_callback = cb;
     m_callee = callee; // It's okay if this is null
-  } else {
+  }
+  else
+  {
 
     SFR_LOG("Passed callback is nullptr\n");
   }
@@ -97,7 +111,8 @@ void StatefulReaderT<NetworkDriver>::registerCallback(ddsReaderCallback_fp cb,
 
 template <class NetworkDriver>
 bool StatefulReaderT<NetworkDriver>::addNewMatchedWriter(
-    const WriterProxy &newProxy) {
+    const WriterProxy &newProxy)
+{
 #if SFR_VERBOSE && RTPS_GLOBAL_VERBOSE
   SFR_LOG("New writer added with id: ");
   printGuid(newProxy.remoteWriterGuid);
@@ -107,12 +122,15 @@ bool StatefulReaderT<NetworkDriver>::addNewMatchedWriter(
 }
 
 template <class NetworkDriver>
-void StatefulReaderT<NetworkDriver>::removeWriter(const Guid_t &guid) {
+void StatefulReaderT<NetworkDriver>::removeWriter(const Guid_t &guid)
+{
   Lock lock(m_mutex);
-  auto isElementToRemove = [&](const WriterProxy &proxy) {
+  auto isElementToRemove = [&](const WriterProxy &proxy)
+  {
     return proxy.remoteWriterGuid == guid;
   };
-  auto thunk = [](void *arg, const WriterProxy &value) {
+  auto thunk = [](void *arg, const WriterProxy &value)
+  {
     return (*static_cast<decltype(isElementToRemove) *>(arg))(value);
   };
 
@@ -121,12 +139,15 @@ void StatefulReaderT<NetworkDriver>::removeWriter(const Guid_t &guid) {
 
 template <class NetworkDriver>
 void StatefulReaderT<NetworkDriver>::removeWriterOfParticipant(
-    const GuidPrefix_t &guidPrefix) {
+    const GuidPrefix_t &guidPrefix)
+{
   Lock lock(m_mutex);
-  auto isElementToRemove = [&](const WriterProxy &proxy) {
+  auto isElementToRemove = [&](const WriterProxy &proxy)
+  {
     return proxy.remoteWriterGuid.prefix == guidPrefix;
   };
-  auto thunk = [](void *arg, const WriterProxy &value) {
+  auto thunk = [](void *arg, const WriterProxy &value)
+  {
     return (*static_cast<decltype(isElementToRemove) *>(arg))(value);
   };
 
@@ -135,21 +156,25 @@ void StatefulReaderT<NetworkDriver>::removeWriterOfParticipant(
 
 template <class NetworkDriver>
 bool StatefulReaderT<NetworkDriver>::onNewHeartbeat(
-    const SubmessageHeartbeat &msg, const GuidPrefix_t &sourceGuidPrefix) {
+    const SubmessageHeartbeat &msg, const GuidPrefix_t &sourceGuidPrefix)
+{
   Lock lock(m_mutex);
   PacketInfo info;
   info.srcPort = m_packetInfo.srcPort;
   WriterProxy *writer = nullptr;
   // Search for writer
-  for (WriterProxy &proxy : m_proxies) {
+  for (WriterProxy &proxy : m_proxies)
+  {
     if (proxy.remoteWriterGuid.prefix == sourceGuidPrefix &&
-        proxy.remoteWriterGuid.entityId == msg.writerId) {
+        proxy.remoteWriterGuid.entityId == msg.writerId)
+    {
       writer = &proxy;
       break;
     }
   }
 
-  if (writer == nullptr) {
+  if (writer == nullptr)
+  {
 
 #if SFR_VERBOSE && RTPS_GLOBAL_VERBOSE
     SFR_LOG("Ignore heartbeat. Couldn't find a matching "
@@ -160,7 +185,8 @@ bool StatefulReaderT<NetworkDriver>::onNewHeartbeat(
     return false;
   }
 
-  if (msg.count.value <= writer->hbCount.value) {
+  if (msg.count.value <= writer->hbCount.value)
+  {
 
     SFR_LOG("Ignore heartbeat. Count too low.\n");
     return false;

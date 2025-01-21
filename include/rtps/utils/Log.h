@@ -28,13 +28,13 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #include <cstdio>
 #include <stdarg.h>
 
-// #define RTPS_GLOBAL_VERBOSE 0
-#define RTPS_GLOBAL_VERBOSE 1
+#define RTPS_GLOBAL_VERBOSE 0
+// #define RTPS_GLOBAL_VERBOSE 1
 
 // #define SPDP_VERBOSE 1
-#define PBUF_WRAP_VERBOSE 1
-#define SEDP_VERBOSE 1
-#define RECV_VERBOSE 1
+// #define PBUF_WRAP_VERBOSE 1
+// #define SEDP_VERBOSE 1
+// #define RECV_VERBOSE 1
 // #define PARTICIPANT_VERBOSE 0
 #define PARTICIPANT_VERBOSE 1
 #define DOMAIN_VERBOSE 0
