@@ -354,4 +354,4 @@ void SPDPAgent::addParticipantParameters() {
   endCurrentList();
 }
 
-#undef SPDP_VERBOSE
+//  #undef SPDP_VERBOSE

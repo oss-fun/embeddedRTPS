@@ -105,4 +105,4 @@ bool StatelessReader::onNewHeartbeat(const SubmessageHeartbeat &,
   return false;
 }
 
-#undef SLR_VERBOSE
+// #undef SLR_VERBOSE

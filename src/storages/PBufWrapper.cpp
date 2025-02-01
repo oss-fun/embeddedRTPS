@@ -184,4 +184,4 @@ bool PBufWrapper::increaseSizeBy(uint16_t length) {
   return true;
 }
 
-#undef PBUF_WRAP_VERBOSE
+// #undef PBUF_WRAP_VERBOSE
