@@ -8,14 +8,14 @@ find_package(microcdr REQUIRED)
 set(ERTPS_MAX_HISTORY "10" CACHE STRING 
 "This value sets the number of history slots available for RMW subscriptions, requests and replies")
 
-set(ERTPS_MAX_PARTICIPANTS "5" CACHE STRING "This value sets the maximum number of rtps participants.")
+set(ERTPS_MAX_PARTICIPANTS "1" CACHE STRING "This value sets the maximum number of rtps participants.")
 
 # TODO: fix difference between best effort and reliable writers/readers
-set(ERTPS_MAX_PUBLISHERS "5" CACHE STRING "This value sets the maximum number of publishers for a domain.")
-set(ERTPS_MAX_SUBSCRIPTIONS "5" CACHE STRING "This value sets the maximum number of subscriptions for a domain.")
+set(ERTPS_MAX_PUBLISHERS "1" CACHE STRING "This value sets the maximum number of publishers for a domain.")
+set(ERTPS_MAX_SUBSCRIPTIONS "1" CACHE STRING "This value sets the maximum number of subscriptions for a domain.")
 
-set(ERTPS_MAX_SERVICES "5" CACHE STRING "This value sets the maximum number of services for a domain.")
-set(ERTPS_MAX_CLIENTS "5" CACHE STRING "This value sets the maximum number of clients for a domain.")
+set(ERTPS_MAX_SERVICES "1" CACHE STRING "This value sets the maximum number of services for a domain.")
+set(ERTPS_MAX_CLIENTS "1" CACHE STRING "This value sets the maximum number of clients for a domain.")
 set(ERTPS_TOPIC_NAME_MAX_LENGTH "200" CACHE STRING "This value sets the maximum number of characters for a topic name.")
 set(ERTPS_TYPE_NAME_MAX_LENGTH "200" CACHE STRING "This value sets the maximum number of characters for a type name.")
 
