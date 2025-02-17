@@ -19,9 +19,9 @@ set(ERTPS_MAX_CLIENTS "1" CACHE STRING "This value sets the maximum number of cl
 set(ERTPS_TOPIC_NAME_MAX_LENGTH "200" CACHE STRING "This value sets the maximum number of characters for a topic name.")
 set(ERTPS_TYPE_NAME_MAX_LENGTH "200" CACHE STRING "This value sets the maximum number of characters for a type name.")
 
-set(ERTPS_PROXIES_PER_WRITER "50" CACHE STRING "This value sets the maximum number of matched readers per writer.")
-set(ERTPS_PROXIES_PER_READER "50" CACHE STRING "This value sets the maximum number of matched writers per reader.")
-set(ERTPS_MAX_UDP_CONNECTIONS "75" CACHE STRING "This value sets the maximum number of UDP connections.")
+set(ERTPS_PROXIES_PER_WRITER "10" CACHE STRING "This value sets the maximum number of matched readers per writer.")
+set(ERTPS_PROXIES_PER_READER "10" CACHE STRING "This value sets the maximum number of matched writers per reader.")
+set(ERTPS_MAX_UDP_CONNECTIONS "15" CACHE STRING "This value sets the maximum number of UDP connections.")
 
 # Create source files with the define
 configure_file(${PROJECT_SOURCE_DIR}/include/rtps/config.h.in
