@@ -31,18 +31,18 @@ Author: i11 - Embedded Software, RWTH Aachen University
 #define RTPS_GLOBAL_VERBOSE 0
 // #define RTPS_GLOBAL_VERBOSE 1
 
-// #define SPDP_VERBOSE 1
-// #define PBUF_WRAP_VERBOSE 1
-// #define SEDP_VERBOSE 1
+#define SPDP_VERBOSE 1
+#define PBUF_WRAP_VERBOSE 1
+#define SEDP_VERBOSE 1
 // #define RECV_VERBOSE 1
-// #define PARTICIPANT_VERBOSE 0
+#define PARTICIPANT_VERBOSE 0
 #define PARTICIPANT_VERBOSE 1
 #define DOMAIN_VERBOSE 0
 // #define DOMAIN_VERBOSE 1
 #define UDP_DRIVER_VERBOSE 1
 #define TSCB_VERBOSE 1
-// #define SFW_VERBOSE 1
-// #define SLW_VERBOSE 1
+#define SFW_VERBOSE 1
+#define SLW_VERBOSE 1
 // #define SFR_VERBOSE 1
 // #define SLR_VERBOSE 1
 

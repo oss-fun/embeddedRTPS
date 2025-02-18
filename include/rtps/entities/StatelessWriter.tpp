@@ -379,7 +379,7 @@ void StatelessWriterT<NetworkDriver>::progress()
           CacheChange::SerializedBuf serialized_buf;
           while (1)
           {
-            serialized_buf = next->serializerCallback();
+            serialized_buf = next->serializerCallback(); // std::make_pair(frag_buf, (rtps::DataSize_t)(len));
             if (0 != serialized_buf.second)
             {
               PBufWrapper data;
